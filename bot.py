@@ -117,13 +117,37 @@ REPLY_INSTRUCTIONS = (
     "Ответь только текстом реплики для Telegram. "
     "Пиши строчными буквами, каждое предложение заканчивай точкой. "
     "Не используй брат, братан, бро и похожую фамильярность. "
-    "Не будь излишне любезным и восхищённым. "
-    "Если не хватает фактов, верни только одну строку [SEARCH: запрос]. "
+    "Не будь излишне любезным и не лей воду. "
+    "Отвечай прямо на вопрос, без загадок и философии. "
+    "Если спрашивают ник или имя — возьми из строки СОБЕСЕДНИК, не выдумывай. "
+    "Никогда не пиши пользователю [SEARCH], [search] и подобные теги — это служебная метка. "
+    "Если не хватает фактов, верни только одну строку: [SEARCH: короткий запрос]. "
     "Если сообщение является чистым троллингом, спамом или пустой провокацией, верни ровно [SKIP] и ничего больше. "
     "Если сообщение содержит фото, картинку или скриншот, сначала разберись, что видно на изображении, и комментируй это как живой участник сообщества, без канцелярита. "
     "Если деталей не видно, честно скажи, что изображение мутное, обрезано или не читается."
 )
-SEARCH_REQUEST_RE = re.compile(r"^\[SEARCH:\s*(.+?)\s*\]\s*$", re.IGNORECASE | re.DOTALL)
+SEARCH_REQUEST_STRICT_RE = re.compile(
+    r"^\[SEARCH:\s*(.+?)\s*\]\s*\.?\s*$",
+    re.IGNORECASE | re.DOTALL,
+)
+SEARCH_REQUEST_LOOSE_RE = re.compile(
+    r"^\[?\s*search\s*:?\s*(.+?)\s*\]?\s*\.?\s*$",
+    re.IGNORECASE | re.DOTALL,
+)
+SEARCH_INLINE_RE = re.compile(r"\[search\s*:?\s*([^\]]+)\]", re.IGNORECASE)
+SEARCH_MARKER_RE = re.compile(r"\[search", re.IGNORECASE)
+NICKNAME_QUESTION_RE = re.compile(
+    r"(какой\s+(у\s+меня|мой)\s+ник|мой\s+ник|моё\s+имя|мое\s+имя|"
+    r"как\s+меня\s+зовут|как\s+зовут|какое\s+имя|какой\s+ник)",
+    re.IGNORECASE,
+)
+FACTUAL_USER_QUESTION_RE = re.compile(
+    r"\b("
+    r"как\s+умер|когда\s+умер|кто\s+такой|что\s+такое|почему|сколько|"
+    r"где\s+находится|когда\s+родился|когда\s+умерла"
+    r")\b",
+    re.IGNORECASE,
+)
 FAMILIARITY_RE = re.compile(r"\b(братанчик|братан|брат|бро)\b", re.IGNORECASE)
 TOKEN_RE = re.compile(r"[0-9A-Za-zА-Яа-яЁё_]+", re.UNICODE)
 BOT_DATA_ID_KEY = "bot_id"
@@ -398,6 +422,8 @@ def format_user_payload(
     parts = [
         f"ИСТОРИЯ ЧАТА (последние {CONTEXT_WINDOW} сообщений):",
         history_block,
+        "",
+        f"СОБЕСЕДНИК (имя в telegram сейчас): {current_name}",
     ]
     if learning_block:
         parts.extend(["", learning_block])
@@ -416,12 +442,73 @@ def is_skip_reply(reply: str) -> bool:
     return normalized in SKIP_MARKERS
 
 
-def parse_search_request(reply: str) -> str | None:
-    match = SEARCH_REQUEST_RE.match(reply.strip())
-    if not match:
+def contains_search_marker(text: str) -> bool:
+    return bool(SEARCH_MARKER_RE.search(text))
+
+
+def is_nickname_question(text: str) -> bool:
+    return bool(NICKNAME_QUESTION_RE.search(normalize_text(text)))
+
+
+def nickname_reply(current_name: str) -> str:
+    return apply_style_rules(f"твой ник в телеге сейчас: {current_name}.")
+
+
+def refine_search_query(text: str) -> str:
+    cleaned = normalize_text(text)
+    if not cleaned:
+        return cleaned
+
+    patterns = (
+        (re.compile(r"^как\s+умер(?:ла)?\s+(.+)$", re.I), r"\1 смерть"),
+        (re.compile(r"^когда\s+умер(?:ла)?\s+(.+)$", re.I), r"\1 смерть"),
+        (re.compile(r"^кто\s+такой\s+(.+)$", re.I), r"\1"),
+        (re.compile(r"^что\s+такое\s+(.+)$", re.I), r"\1"),
+    )
+    for pattern, replacement in patterns:
+        match = pattern.match(cleaned)
+        if match:
+            return normalize_text(pattern.sub(replacement, cleaned, count=1))
+    return cleaned
+
+
+def guess_search_query_from_user(text: str) -> str | None:
+    cleaned = normalize_text(text)
+    if not cleaned or is_nickname_question(cleaned):
         return None
-    query = normalize_text(match.group(1))
-    return query or None
+    if FACTUAL_USER_QUESTION_RE.search(cleaned):
+        return refine_search_query(cleaned)
+    return None
+
+
+def parse_search_request(reply: str) -> str | None:
+    raw = reply.strip().strip('"').strip("'")
+    if not raw:
+        return None
+
+    for pattern in (SEARCH_REQUEST_STRICT_RE, SEARCH_REQUEST_LOOSE_RE):
+        match = pattern.match(raw)
+        if match:
+            query = normalize_text(match.group(1))
+            return query or None
+
+    inline = SEARCH_INLINE_RE.search(raw)
+    if inline and len(raw) < 160:
+        query = normalize_text(inline.group(1))
+        return query or None
+
+    return None
+
+
+def resolve_search_query(model_reply: str, user_text: str) -> str | None:
+    query = parse_search_request(model_reply)
+    if query:
+        return query
+    if contains_search_marker(model_reply):
+        query = parse_search_request(model_reply.replace(".", ""))
+        if query:
+            return query
+    return guess_search_query_from_user(user_text)
 
 
 def apply_style_rules(reply: str) -> str:
@@ -697,7 +784,7 @@ async def call_openai(
 
     response = await client.chat.completions.create(
         model=OPENAI_MODEL,
-        temperature=0.9,
+        temperature=0.75,
         max_tokens=400,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
@@ -742,6 +829,14 @@ async def generate_reply(
             user_text = f"{user_text}\n\n[Медиа: {attachment.note}]"
         user_content = user_text
 
+    if is_nickname_question(current_text):
+        return ReplyOutcome(
+            text=nickname_reply(current_name),
+            learnable=False,
+            query=query,
+            kind=kind,
+        )
+
     if not get_openai_client():
         logger.error("OPENAI_API_KEY is not set")
         return ReplyOutcome(
@@ -765,15 +860,21 @@ async def generate_reply(
     if is_skip_reply(reply):
         return ReplyOutcome(text=None, learnable=False, query=query, kind=kind)
 
-    search_query = parse_search_request(reply)
-    if search_query:
+    search_query = resolve_search_query(reply, current_text)
+    if search_query or contains_search_marker(reply):
+        if not search_query:
+            search_query = refine_search_query(current_text) or "уточни запрос"
+        else:
+            search_query = refine_search_query(search_query)
+        logger.info("Running web search for query=%r", search_query)
         results = await search_web(search_query)
         search_block = format_search_context(results)
         follow_up = (
             f"{user_payload}\n\n"
             f"{search_block}\n\n"
             f"{REPLY_INSTRUCTIONS}\n"
-            "Дай финальный ответ по фактам из поиска. Не возвращай [SEARCH] повторно."
+            "Дай короткий финальный ответ по фактам из поиска. "
+            "Не возвращай [SEARCH] и не показывай служебные теги."
         )
         follow_up_content: str | list[dict[str, object]]
         if isinstance(user_content, list):
@@ -795,8 +896,14 @@ async def generate_reply(
         if is_skip_reply(reply):
             return ReplyOutcome(text=None, learnable=False, query=query, kind=kind)
 
+    final_reply = apply_style_rules(reply)
+    if contains_search_marker(final_reply):
+        final_reply = apply_style_rules(
+            "поиск сдох, фактов нет. скажи честно что не нашел, без тегов search."
+        )
+
     return ReplyOutcome(
-        text=apply_style_rules(reply),
+        text=final_reply,
         learnable=True,
         query=query,
         kind=kind,
