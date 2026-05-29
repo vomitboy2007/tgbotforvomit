@@ -8,12 +8,13 @@ from __future__ import annotations
 import logging
 import os
 import random
+from html import escape
 from collections import deque
 
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from telegram import Update
-from telegram.constants import ChatType
+from telegram.constants import ChatType, ParseMode
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
 from prompt_loader import build_system_prompt
@@ -136,8 +137,12 @@ def is_skip_reply(reply: str) -> bool:
 
 
 def build_lore_reply() -> str:
-    fact = random.choice(LORE_FACTS)
-    return f"а ты знал, что {fact}, чекни - {LORE_URL}"
+    fact = escape(random.choice(LORE_FACTS))
+    return (
+        "<b>а ты знал, что</b>\n"
+        f"<blockquote>{fact}</blockquote>\n"
+        f"чекни - {LORE_URL}"
+    )
 
 
 async def generate_reply(chat_id: int, current_name: str, current_text: str) -> str | None:
@@ -190,7 +195,11 @@ async def on_lore(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     add_message(chat.id, name, text)
     add_message(chat.id, "Ярослав Вомитов", reply)
-    await message.reply_text(reply)
+    await message.reply_text(
+        reply,
+        parse_mode=ParseMode.HTML,
+        disable_web_page_preview=True,
+    )
 
 
 async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
