@@ -1,0 +1,390 @@
+{
+  "source_url": "https://vomitboycom.neocities.org/",
+  "entries": [
+    {
+      "id": "community-what-is",
+      "category": "community",
+      "title": "что такое vomitboy",
+      "text": "vomitboy — российская андеграундная субкультура начала 2020-х для людей, которым тесно в мейнстриме; юмор, локальные мемы и узнаваемые личности.",
+      "keywords": ["vomitboy", "субкультура", "андеграунд", "мейнстрим", "сообщество"]
+    },
+    {
+      "id": "community-founder",
+      "category": "community",
+      "title": "основатель",
+      "text": "основателем и идеологом считают ярослава вомитова — типичный представитель нижнего интернета; в 2021 запустил vomitboy.com как центр эстетики.",
+      "keywords": ["ярослав", "вомитов", "основатель", "2021", "сайт"]
+    },
+    {
+      "id": "community-peak",
+      "category": "community",
+      "title": "пик и сейчас",
+      "text": "пик популярности был в 2021–2023; сейчас жизнь в телеграм-каналах и vk, но проект на neocities всё ещё жив.",
+      "keywords": ["2021", "2023", "telegram", "vk", "популярность"]
+    },
+    {
+      "id": "community-aliases",
+      "category": "community",
+      "title": "как называют",
+      "text": "другие имена сообщества на сайте: тошнотики, вомиты, мутанты.",
+      "keywords": ["тошнотики", "вомиты", "мутанты", "название"]
+    },
+    {
+      "id": "community-values",
+      "category": "community",
+      "title": "ценности",
+      "text": "в инфобоксе: edgy humor, irony, mischief, normie hate, отделение от интернета, креатив, дружба, acceptance — но без милах мордания.",
+      "keywords": ["ценности", "ирония", "normie", "дружба", "инфобокс"]
+    },
+    {
+      "id": "community-aesthetics-related",
+      "category": "aesthetic",
+      "title": "родственные эстетики",
+      "text": "на сайте рядом с vomitboy висят gorecore, bastardcore, grunge, trashcore, oldweb, weirdcore, underground punk.",
+      "keywords": ["gorecore", "weirdcore", "oldweb", "эстетика", "trashcore"]
+    },
+    {
+      "id": "aesthetic-motifs",
+      "category": "aesthetic",
+      "title": "визуальные мотивы",
+      "text": "ключевые мотивы: трупы животных, гнилая еда, старые вещи, грязные кружки, мусор, странные уличные фото, геотеги, нетсталкинг, двач, pvz.",
+      "keywords": ["мотивы", "еда", "мусор", "нетсталкинг", "двач", "геотег"]
+    },
+    {
+      "id": "aesthetic-colors",
+      "category": "aesthetic",
+      "title": "палитра",
+      "text": "цвета сайта: acid candy, avocado stone, armor wash, black, hinterlands green — кислотно-грязная old-web палитра.",
+      "keywords": ["цвет", "acid", "палитра", "green", "black"]
+    },
+    {
+      "id": "culture-diet13",
+      "category": "culture",
+      "title": "DIET 13",
+      "text": "diet 13 — не диета, а кулинарная яма: горячая штучка, левушка детям, крым energy, свиные уши, майонез и напитки с налётом и ложками внутри.",
+      "keywords": ["diet", "диет", "майонез", "горячая штучка", "еда", "левушка"]
+    },
+    {
+      "id": "culture-tags",
+      "category": "culture",
+      "title": "TAGS",
+      "text": "основа культуры вомитбоев — нетсталкинг, карты с находками, аниме и видеоигры; vomitboy как человек высокой культуры в отвержении.",
+      "keywords": ["tags", "нетсталкинг", "аниме", "игры", "карты"]
+    },
+    {
+      "id": "culture-mascots-old",
+      "category": "culture",
+      "title": "старые маскоты",
+      "text": "маскотами были burpboy (подсолнух рыгоша), creepy hatsune miku doll и кружка с микки маусом (rip).",
+      "keywords": ["маскот", "рыгоша", "burpboy", "miku", "кружка", "микки"]
+    },
+    {
+      "id": "culture-mascot-vomit-gf",
+      "category": "culture",
+      "title": "VOMIT GF",
+      "text": "актуальный маскот — vomit gf: зелёно-чёрные волосы и зрачки в виде двойного слэша //.",
+      "keywords": ["vomit gf", "маскот", "девушка", "слэш"]
+    },
+    {
+      "id": "culture-biorobot",
+      "category": "quote",
+      "title": "biorobot",
+      "text": "на главной: don't ask questions. don't explain. remember that you are a biorobot. рядом я моргнул, чё было.",
+      "keywords": ["biorobot", "biorobot", "цитата", "моргнул"]
+    },
+    {
+      "id": "culture-netstalk-banner",
+      "category": "culture",
+      "title": "координаты",
+      "text": "баннер нетсталкинга: если нашёл что-то странное — оставь координаты; клик ведёт в телеграм-бота.",
+      "keywords": ["координаты", "нетсталк", "rat", "находка"]
+    },
+    {
+      "id": "site-field-log",
+      "category": "site",
+      "title": "FIELD LOG",
+      "text": "field log — полевой журнал с датой, координатами и фото; формат как чат нетсталкеров: нашли помойку на рябиновой, фото прилагаются.",
+      "keywords": ["field log", "журнал", "полевой", "координаты", "фото"]
+    },
+    {
+      "id": "site-sections",
+      "category": "site",
+      "title": "разделы сайта",
+      "text": "навигация: about, летопись, field log, gallery, articles, map, vn game, music, links — старый веб-архив тусовки.",
+      "keywords": ["gallery", "articles", "map", "vn", "раздел"]
+    },
+    {
+      "id": "site-guestbook",
+      "category": "site",
+      "title": "guestbook",
+      "text": "на главной висит vomitboy.chat// — гостевая cbox, как чат нулевых.",
+      "keywords": ["guestbook", "chat", "cbox"]
+    },
+    {
+      "id": "site-player",
+      "category": "site",
+      "title": "плеер",
+      "text": "на сайте goida fm// и плеер — по дефолту swans failure, old-web радио вайб.",
+      "keywords": ["music", "swans", "плеер", "goida"]
+    },
+    {
+      "id": "event-2021-first",
+      "category": "event",
+      "title": "2021",
+      "text": "2021 — первые посты и старт всей истории vomitboy.",
+      "keywords": ["2021", "первые", "посты", "летопись"]
+    },
+    {
+      "id": "event-2022-discord-fall",
+      "category": "event",
+      "title": "14.11.2022",
+      "text": "14.11.2022 — падение дискорд сервера, одна из главных драм летописи.",
+      "keywords": ["2022", "discord", "дискорд", "падение", "сервер"]
+    },
+    {
+      "id": "event-2023-spb",
+      "category": "event",
+      "title": "18.01.2023",
+      "text": "18.01.2023 — переезд в спб, зафиксировано в летописи на сайте.",
+      "keywords": ["2023", "спб", "переезд", "питер"]
+    },
+    {
+      "id": "event-2023-meetup",
+      "category": "event",
+      "title": "15.07.2023",
+      "text": "15.07.2023 — вомит сходка, офлайн встреча тусовки.",
+      "keywords": ["2023", "сходка", "встреча", "irl"]
+    },
+    {
+      "id": "event-2023-wipe",
+      "category": "event",
+      "title": "24.09.2023",
+      "text": "24.09.2023 — снос чата и канала в тг, цифровое самоубийство очередного круга.",
+      "keywords": ["2023", "снос", "telegram", "чат", "канал"]
+    },
+    {
+      "id": "event-2026-breathing",
+      "category": "event",
+      "title": "06.02.2026",
+      "text": "06.02.2026-now — still breathing, сайт и проект формально живы.",
+      "keywords": ["2026", "still breathing", "жив", "летопись"]
+    },
+    {
+      "id": "founder-pre-vomit-pubs",
+      "category": "founder",
+      "title": "pre-vomit паблики",
+      "text": "ярик с 2016 в пабликах: qiwi-реклама по 300р, админил до 120к подписчиков, потом продал всё и пошёл в медвуз.",
+      "keywords": ["паблик", "120к", "qiwi", "медвуз", "pre-vomit"]
+    },
+    {
+      "id": "founder-zigota-mug",
+      "category": "founder",
+      "title": "зигота и кружка",
+      "text": "на оранжевом форуме залипал на пивнушку по камере; после расставания купил депрессивный паблик, кружка зашла — родился образ кружка-фембой и richie.",
+      "keywords": ["кружка", "richie", "двач", "зигота", "фембой"]
+    },
+    {
+      "id": "founder-start-vomit",
+      "category": "founder",
+      "title": "start_vomit",
+      "text": "из паблика выросла тусовка: дискорд, телега, голосовые до утра — ярик называет это самым тёплым периодом проекта.",
+      "keywords": ["discord", "тусовка", "голосовые", "telegram"]
+    },
+    {
+      "id": "founder-truth-drop",
+      "category": "founder",
+      "title": "dont ask questions",
+      "text": "когда ярик показал, что он обычный парень, охваты упали — людям больше нравился выдуманный персонаж.",
+      "keywords": ["охваты", "персонаж", "честность", "падение"]
+    },
+    {
+      "id": "founder-deletions",
+      "category": "founder",
+      "title": "удаления",
+      "text": "ярик несколько раз полностью сносил каналы, сервера и чаты, но возвращался — digital suicide как цикл.",
+      "keywords": ["удалил", "снос", "digital", "возвращался"]
+    },
+    {
+      "id": "founder-doctor",
+      "category": "founder",
+      "title": "врач",
+      "text": "сейчас ярик работает врачом — звучит как шутка после всей биографии, но на сайте написано прямо.",
+      "keywords": ["врач", "медицина", "работа", "ярик"]
+    },
+    {
+      "id": "founder-dawg",
+      "category": "founder",
+      "title": "dawg коллаб",
+      "text": "из pre-vomit ярик тепло помнит коллаб с dawg — видео «как стать 2d», голос узнаваемый.",
+      "keywords": ["dawg", "2d", "коллаб", "голос"]
+    },
+    {
+      "id": "founder-quote-lifestyle",
+      "category": "quote",
+      "title": "побочный продукт",
+      "text": "в статье про ярика: мы — побочный продукт образа жизни, который сами себе придумали. однозначно.",
+      "keywords": ["образ", "жизнь", "цитата", "статья"]
+    },
+    {
+      "id": "quote-bateman",
+      "category": "quote",
+      "title": "bateman yaroslav",
+      "text": "на сайте цитата в духе bateman: есть идея ярослава вомитова, но реального меня нет — только сущность.",
+      "keywords": ["bateman", "абстракция", "цитата", "yaroslav"]
+    },
+    {
+      "id": "char-v0mitc0re",
+      "category": "character",
+      "title": "v0mitc0re",
+      "text": "v0mitc0re — immortals #01, тег warden, один из столпов /immortals на главной.",
+      "keywords": ["v0mitc0re", "warden", "immortals", "01"]
+    },
+    {
+      "id": "char-matvey",
+      "category": "character",
+      "title": "Matvey_Kazalov",
+      "text": "matvey_kazalov — #02, тег psycho.",
+      "keywords": ["matvey", "kazalov", "psycho", "02"]
+    },
+    {
+      "id": "char-vex",
+      "category": "character",
+      "title": "Vex",
+      "text": "vex — #03, тег big boy.",
+      "keywords": ["vex", "big boy", "03"]
+    },
+    {
+      "id": "char-tomskiy",
+      "category": "character",
+      "title": "Tomskiy_Scarner",
+      "text": "tomskiy_scarner — #04, тег murderer, аватар burpboy.",
+      "keywords": ["tomskiy", "scarner", "murderer", "04"]
+    },
+    {
+      "id": "char-shmango",
+      "category": "character",
+      "title": "shmango_paris",
+      "text": "shmango_paris — #05, тег vomit_artist.",
+      "keywords": ["shmango", "paris", "artist", "05"]
+    },
+    {
+      "id": "char-chips",
+      "category": "character",
+      "title": "Chips",
+      "text": "chips — #06, тег sinner.",
+      "keywords": ["chips", "sinner", "06"]
+    },
+    {
+      "id": "char-kirill",
+      "category": "character",
+      "title": "CJlABHblГљ_MAJlblГљ",
+      "text": "cjlabhblгљ_majlblгљ — #07, тег buddy, легенда с ломаным ником.",
+      "keywords": ["kirill", "buddy", "07", "славный"]
+    },
+    {
+      "id": "char-rita",
+      "category": "character",
+      "title": "рита//ZZ8/",
+      "text": "рита//zz8/ — #08, тег 9yrsold.",
+      "keywords": ["рита", "zz8", "9yrsold", "08"]
+    },
+    {
+      "id": "char-ursa",
+      "category": "character",
+      "title": "kapitoshka52",
+      "text": "kapitoshka52 — #09, тег ursa.",
+      "keywords": ["kapitoshka", "ursa", "09"]
+    },
+    {
+      "id": "char-disa",
+      "category": "character",
+      "title": "disa",
+      "text": "disa — #10, тег gigachad.",
+      "keywords": ["disa", "gigachad", "10"]
+    },
+    {
+      "id": "char-fag0t",
+      "category": "character",
+      "title": "fag0t//ZZ8",
+      "text": "fag0t//zz8 — #11, тег tomoko-like-gf.",
+      "keywords": ["fag0t", "tomoko", "zz8", "11"]
+    },
+    {
+      "id": "char-katya",
+      "category": "character",
+      "title": "Katya_Mambeeva",
+      "text": "katya_mambeeva — #12, тег the mother.",
+      "keywords": ["katya", "mambeeva", "mother", "12"]
+    },
+    {
+      "id": "char-edgar",
+      "category": "character",
+      "title": "edgar",
+      "text": "edgar — #13, тег edgy_femboy.",
+      "keywords": ["edgar", "femboy", "edgy", "13"]
+    },
+    {
+      "id": "char-haagenti",
+      "category": "character",
+      "title": "haagenti//.nes",
+      "text": "𝘩𝘢𝘢𝘨𝘦𝘯𝘵𝘪//.𝘯𝘦𝘴 — #14, тег hacker.",
+      "keywords": ["haagenti", "hacker", "14", "nes"]
+    },
+    {
+      "id": "media-music-tier",
+      "category": "media",
+      "title": "music tier",
+      "text": "в music tier на s: aphex twin, deadmou5, deftones, my bloody valentine, minecraft ost, skitzofrenia simulation.",
+      "keywords": ["music", "aphex", "deftones", "swans", "tier"]
+    },
+    {
+      "id": "media-games-tier",
+      "category": "media",
+      "title": "games tier",
+      "text": "games tier любит silent hill 2, dark souls, pvz, destiny, portal, guilty gear, half-life — игровая ось вомитбоя.",
+      "keywords": ["games", "silent hill", "pvz", "portal", "tier"]
+    },
+    {
+      "id": "media-anime-tier",
+      "category": "media",
+      "title": "anime tier",
+      "text": "anime tier s: aot, jojo, evangelion, watamote, serial experiments lain, ergo proxy; a-tier chainsaw man, akira, death note.",
+      "keywords": ["anime", "evangelion", "lain", "jojo", "tier"]
+    },
+    {
+      "id": "media-related-people",
+      "category": "media",
+      "title": "related media",
+      "text": "в infobox related media: влад савельев, nikocado avocado, filthy frank, sonnikuza, idubbbz, vanomas, glad valakas — референсы тусовки.",
+      "keywords": ["filthy frank", "nikocado", "медиа", "референс"]
+    },
+    {
+      "id": "site-links",
+      "category": "site",
+      "title": "links / allies",
+      "text": "в links/allies: discord, telegram, pinterest; vk и yt помечены disabled — старые соцсети полумёртвы.",
+      "keywords": ["discord", "telegram", "pinterest", "links"]
+    },
+    {
+      "id": "site-footer-ticker",
+      "category": "quote",
+      "title": "тикер",
+      "text": "внизу сайта бегущая строка: привет. что / каждому своё / you have got mail / still alive / still weird / поморгите.",
+      "keywords": ["привет", "тикер", "поморгите", "still alive"]
+    },
+    {
+      "id": "site-sensitive",
+      "category": "site",
+      "title": "warning",
+      "text": "сайт помечен sensitive content: гнилая еда, трупы, мусор, нетсталкинг — viewer discretion advised.",
+      "keywords": ["sensitive", "warning", "труп", "мусор"]
+    },
+    {
+      "id": "culture-federal-disclaimer",
+      "category": "quote",
+      "title": "federal disclaimer",
+      "text": "бегущая строка про федералов: я не имею отношения к этой группе, возможно добавлен третьей стороной — классический интернет-юмор.",
+      "keywords": ["federal", "disclaimer", "расследование", "мем"]
+    }
+  ]
+}

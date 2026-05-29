@@ -26,6 +26,7 @@ from telegram.constants import ChatType, MessageEntityType, ParseMode
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
 from prompt_loader import build_system_prompt
+from site_lore import LORE_URL, SITE_LORE
 from web_search import format_search_context, search_web
 
 load_dotenv()
@@ -110,17 +111,6 @@ IMAGE_MAX_BYTES = read_int_env("IMAGE_MAX_BYTES", 8 * 1024 * 1024, minimum=1024 
 
 SKIP_MARKERS = {"", "SKIP", "[SKIP]", "[SILENCE]"}
 BOT_DISPLAY_NAME = "Ярослав Вомитов"
-LORE_URL = "https://vomitboycom.neocities.org/"
-LORE_FACTS = (
-    "vomitboy на сайте описан как российская андеграундная субкультура начала 2020-х для людей, которым тесно в мейнстриме",
-    "DIET 13 это не диета, а кулинарная яма с Горячей Штучкой, Левушкой детям, Крым Energy, свиными ушами и майонезом",
-    "основа культуры вомитбоев это нетсталкинг, карты с находками, аниме и видеоигры",
-    "полевой журнал FIELD LOG устроен как заметки с датой, координатами и фото, потому что если нашел странное место - оставь координаты",
-    "маскотами были Рыгоша-подсолнух, Creepy Hatsune Miku doll и кружка с Микки Маусом, а актуальная икона это VOMIT GF с глазами //",
-    "в летописи сайта есть 14.11.2022 как падение дискорд сервера, 15.07.2023 как вомит сходка и 06.02.2026-now как still breathing",
-    "на сайте прямо написано don't ask questions. don't explain. remember that you are a biorobot",
-    "визуальные мотивы вомитбоя это гнилая еда, старые вещи, грязные кружки, мусор, геотеги, нетсталкинг и старый интернет",
-)
 FALLBACK_NO_API_REPLY = "ладно признаюсь мозги в облаке а ключей нет"
 FALLBACK_ERROR_REPLY = "что то сломалось в нейронке. потом попробуй"
 REPLY_INSTRUCTIONS = (
@@ -471,15 +461,16 @@ async def post_init(application: Application) -> None:
     logger.info("Bot ready: id=%s username=@%s", me.id, me.username)
 
 
-def build_lore_reply() -> tuple[str, str]:
-    fact = random.choice(LORE_FACTS)
-    plain_reply = f"а ты знал, что {fact}, чекни - {LORE_URL}"
-    html_reply = (
-        "<b>а ты знал, что</b>\n"
-        f"<blockquote>{escape(fact)}</blockquote>\n"
-        f"чекни - {LORE_URL}"
-    )
-    return plain_reply, html_reply
+def build_lore_reply(chat_id: int) -> tuple[str, str]:
+    entry = SITE_LORE.pick_for_command(chat_id)
+    if not entry:
+        fallback = (
+            f"сайт {LORE_URL} лежит, но база фактов пустая. перезалей data/site_lore.json."
+        )
+        return apply_style_rules(fallback), f"<blockquote>{escape(fallback)}</blockquote>"
+
+    plain_reply, html_reply = SITE_LORE.format_command_reply(entry)
+    return apply_style_rules(plain_reply), html_reply
 
 
 def is_reply_to_bot(message: object, bot_id: int | None, bot_username: str | None) -> bool:
@@ -672,7 +663,12 @@ async def generate_reply(
         learned_examples=learned_examples,
     )
 
-    user_text = f"{user_payload}\n\n{REPLY_INSTRUCTIONS}"
+    lore_entries = SITE_LORE.pick_context_entries(query, chat_id)
+    lore_block = SITE_LORE.format_context_block(lore_entries)
+    user_text = f"{user_payload}"
+    if lore_block:
+        user_text = f"{user_text}\n\n{lore_block}"
+    user_text = f"{user_text}\n\n{REPLY_INSTRUCTIONS}"
     user_content: str | list[dict[str, object]]
     if attachment and attachment.data_url:
         user_content = [
@@ -754,7 +750,7 @@ async def on_lore(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     name = display_name(update)
     text = message.text.strip() if message.text else "/lore"
-    plain_reply, html_reply = build_lore_reply()
+    plain_reply, html_reply = build_lore_reply(chat.id)
 
     add_message(chat.id, name, text)
     add_message(chat.id, BOT_DISPLAY_NAME, plain_reply)
@@ -831,12 +827,13 @@ def main() -> None:
         raise SystemExit("TELEGRAM_TOKEN is required")
 
     logger.info(
-        "Starting bot (context=%s, model=%s, openai=%s, token=%s, memory=%s)",
+        "Starting bot (context=%s, model=%s, openai=%s, token=%s, memory=%s, lore=%s)",
         CONTEXT_WINDOW,
         OPENAI_MODEL,
         "set" if OPENAI_API_KEY else "missing",
         "set" if TELEGRAM_TOKEN else "missing",
         LEARNING_STORE_PATH,
+        SITE_LORE.size,
     )
 
     app = (

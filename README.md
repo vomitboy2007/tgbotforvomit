@@ -34,7 +34,8 @@ GOOGLE_CSE_ID=your_google_custom_search_engine_id
 - Пишет строчными буквами, предложения заканчивает точкой, без «брат/братан» и без лишней любезности.
 - Если не знает фактов — ищет в Google (или DuckDuckGo fallback) и отвечает по результатам.
 - Фото и скриншоты бот тоже умеет анализировать, если на сообщение есть право ответа по тем же правилам.
-- Команда `/lore` отправляет случайный факт с `https://vomitboycom.neocities.org/`.
+- Команда `/lore` выдаёт случайный факт из `data/site_lore.json` (персонажи, летопись, культура, ярик) — без повторов подряд в одном чате.
+- На вопросы про vomitboy/персонажей бот подмешивает релевантные факты с [vomitboycom.neocities.org](https://vomitboycom.neocities.org/).
 - История хранится в памяти процесса как скользящее окно `chat_id -> deque`.
 - Удачные пары вопрос-ответ дополнительно складываются в `runtime/learned_turns.jsonl` и используются как похожие примеры при следующих ответах.
 - При рестарте Railway RAM-память всё равно сбрасывается. Для действительно долгой памяти нужен Redis, PostgreSQL или отдельный volume.
@@ -60,6 +61,8 @@ worker: python bot.py
 | `prompt_loader.py` | Сборка runtime-промпта из `prompt.md` |
 | `corpus.py` | Извлечение примеров из Telegram HTML/TXT экспорта |
 | `web_search.py` | Google Custom Search + DuckDuckGo fallback |
+| `site_lore.py` + `data/site_lore.json` | База фактов с сайта (55+ записей) |
+| `scripts/build_site_lore.py` | Обновить персонажей/летопись из `index.html` |
 | `prompt.md` | Персона, стиль, правила ответа и блок деплоя |
 | `Procfile` | Точка входа Railway worker |
 | `.env.example` | Шаблон переменных окружения без секретов |
