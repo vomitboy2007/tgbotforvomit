@@ -136,13 +136,15 @@ def is_skip_reply(reply: str) -> bool:
     return normalized in SKIP_MARKERS
 
 
-def build_lore_reply() -> str:
-    fact = escape(random.choice(LORE_FACTS))
-    return (
+def build_lore_reply() -> tuple[str, str]:
+    fact = random.choice(LORE_FACTS)
+    plain_reply = f"а ты знал, что {fact}, чекни - {LORE_URL}"
+    html_reply = (
         "<b>а ты знал, что</b>\n"
-        f"<blockquote>{fact}</blockquote>\n"
+        f"<blockquote>{escape(fact)}</blockquote>\n"
         f"чекни - {LORE_URL}"
     )
+    return plain_reply, html_reply
 
 
 async def generate_reply(chat_id: int, current_name: str, current_text: str) -> str | None:
@@ -191,12 +193,12 @@ async def on_lore(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     name = display_name(update)
     text = message.text.strip() if message.text else "/lore"
-    reply = build_lore_reply()
+    plain_reply, html_reply = build_lore_reply()
 
     add_message(chat.id, name, text)
-    add_message(chat.id, "Ярослав Вомитов", reply)
+    add_message(chat.id, "Ярослав Вомитов", plain_reply)
     await message.reply_text(
-        reply,
+        html_reply,
         parse_mode=ParseMode.HTML,
         disable_web_page_preview=True,
     )
