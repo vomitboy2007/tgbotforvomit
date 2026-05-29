@@ -21,18 +21,17 @@ TELEGRAM_TOKEN=your_telegram_bot_token
 OPENAI_API_KEY=your_openai_api_key
 CONTEXT_WINDOW=15
 OPENAI_MODEL=gpt-4o-mini
-GOOGLE_API_KEY=your_google_api_key
-GOOGLE_CSE_ID=your_google_custom_search_engine_id
+SEARCH_MAX_RESULTS=5
 ```
 
-Для фактов из интернета нужен Google Custom Search (Programmable Search Engine). Если ключей нет, бот попробует DuckDuckGo как запасной вариант.
+Поиск фактов: **DuckDuckGo** (работает без ключей). `GOOGLE_API_KEY` + `GOOGLE_CSE_ID` — только опциональный fallback, если DDG пустой.
 
 ## Поведение
 
 - В личных сообщениях бот отвечает на любой текст.
 - В группах отвечает на **реплай** сообщению бота или **@username** бота (включая text mention без username).
 - Пишет строчными буквами, предложения заканчивает точкой, без «брат/братан» и без лишней любезности.
-- Если не знает фактов — ищет в Google (или DuckDuckGo fallback) и отвечает по результатам.
+- Если не знает фактов — ищет через DuckDuckGo и отвечает по результатам.
 - Фото и скриншоты бот тоже умеет анализировать, если на сообщение есть право ответа по тем же правилам.
 - Команда `/lore` выдаёт случайный факт из `data/site_lore.json` (персонажи, летопись, культура, ярик) — без повторов подряд в одном чате.
 - На вопросы про vomitboy/персонажей бот подмешивает релевантные факты с [vomitboycom.neocities.org](https://vomitboycom.neocities.org/).
@@ -45,7 +44,7 @@ GOOGLE_CSE_ID=your_google_custom_search_engine_id
 
 1. Запушьте репозиторий на GitHub.
 2. В Railway создайте `New Project -> Deploy from GitHub repo`.
-3. В `Variables` добавьте `TELEGRAM_TOKEN`, `OPENAI_API_KEY`, `CONTEXT_WINDOW`, при необходимости `OPENAI_MODEL`, `GOOGLE_API_KEY`, `GOOGLE_CSE_ID`.
+3. В `Variables` добавьте `TELEGRAM_TOKEN`, `OPENAI_API_KEY`, `CONTEXT_WINDOW`, при необходимости `OPENAI_MODEL` и `SEARCH_MAX_RESULTS`.
 4. В @BotFather для групп: **Bot Settings → Group Privacy → Turn off**, если хотите, чтобы бот видел все сообщения. С включённой privacy бот всё равно получает reply и mention.
 5. Railway подхватит `Procfile` и запустит worker:
 
@@ -60,7 +59,7 @@ worker: python bot.py
 | `bot.py` | Long polling, OpenAI, Telegram handlers, память чата и локальное обучение |
 | `prompt_loader.py` | Сборка runtime-промпта из `prompt.md` |
 | `corpus.py` | Извлечение примеров из Telegram HTML/TXT экспорта |
-| `web_search.py` | Google Custom Search + DuckDuckGo fallback |
+| `web_search.py` | DuckDuckGo search (+ optional Google fallback) |
 | `site_lore.py` + `data/site_lore.json` | База фактов с сайта (55+ записей) |
 | `scripts/build_site_lore.py` | Обновить персонажей/летопись из `index.html` |
 | `prompt.md` | Персона, стиль, правила ответа и блок деплоя |

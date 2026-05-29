@@ -1,4 +1,4 @@
-"""Web search for factual answers (Google CSE, DuckDuckGo fallback)."""
+"""Web search for factual answers (DuckDuckGo primary, Google CSE optional fallback)."""
 
 from __future__ import annotations
 
@@ -81,21 +81,24 @@ async def search_web(query: str, *, max_results: int | None = None) -> list[dict
 
     limit = max_results or SEARCH_MAX_RESULTS
 
+    results = await _duckduckgo_search(cleaned_query, max_results=limit)
+    if results:
+        logger.info("DuckDuckGo search returned %s hits for %r", len(results), cleaned_query)
+        return results
+
+    logger.warning("DuckDuckGo returned nothing for query=%r", cleaned_query)
+
     if GOOGLE_API_KEY and GOOGLE_CSE_ID:
         try:
             results = await _google_custom_search(cleaned_query, max_results=limit)
             if results:
-                logger.info("Google search returned %s hits for %r", len(results), cleaned_query)
+                logger.info("Google fallback returned %s hits for %r", len(results), cleaned_query)
                 return results
         except Exception:
-            logger.exception("Google Custom Search failed for query=%r", cleaned_query)
+            logger.exception("Google Custom Search fallback failed for query=%r", cleaned_query)
 
-    results = await _duckduckgo_search(cleaned_query, max_results=limit)
-    if results:
-        logger.info("DuckDuckGo search returned %s hits for %r", len(results), cleaned_query)
-    else:
-        logger.warning("No search results for query=%r", cleaned_query)
-    return results
+    logger.warning("No search results for query=%r", cleaned_query)
+    return []
 
 
 def format_search_context(results: list[dict[str, str]]) -> str:
