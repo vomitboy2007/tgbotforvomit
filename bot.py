@@ -446,18 +446,19 @@ def entity_type_name(entity: object) -> str:
     return str(getattr(entity_type, "value", entity_type)).lower()
 
 
-def get_bot_identity(context: ContextTypes.DEFAULT_TYPE) -> tuple[int | None, str | None]:
+async def get_bot_identity(context: ContextTypes.DEFAULT_TYPE) -> tuple[int | None, str | None]:
     bot_data = context.application.bot_data
     bot_id = bot_data.get(BOT_DATA_ID_KEY)
     bot_username = bot_data.get(BOT_DATA_USERNAME_KEY) or context.bot.username
 
-    if bot_id is None:
-        bot_id = getattr(context.bot, "id", None)
+    if bot_id is None or not bot_username:
+        me = await context.bot.get_me()
+        bot_id = bot_id or me.id
+        bot_username = bot_username or me.username
+        bot_data[BOT_DATA_ID_KEY] = bot_id
+        bot_data[BOT_DATA_USERNAME_KEY] = _normalize_username(me.username)
 
-    if bot_username:
-        bot_username = bot_username.lstrip("@").lower()
-
-    return bot_id, bot_username
+    return bot_id, _normalize_username(bot_username)
 
 
 def build_group_incoming_filter() -> filters.MessageFilter:
@@ -508,8 +509,23 @@ def _normalize_username(username: str | None) -> str | None:
     return username.lstrip("@").lower()
 
 
-def _message_entities(message: Message) -> tuple[object, ...]:
-    return tuple(message.entities or ()) + tuple(message.caption_entities or ())
+def _message_full_text(message: Message) -> str:
+    parts: list[str] = []
+    if message.text:
+        parts.append(message.text)
+    if message.caption:
+        parts.append(message.caption)
+    return "\n".join(parts)
+
+
+def _parse_entity_fragment(message: Message, entity: object) -> str | None:
+    caption_entities = message.caption_entities or ()
+    try:
+        if entity in caption_entities:
+            return message.parse_caption_entity(entity)
+        return message.parse_entity(entity)
+    except (RuntimeError, ValueError, IndexError, AttributeError, TypeError):
+        return None
 
 
 def is_reply_to_bot(message: Message, bot_id: int | None, bot_username: str | None) -> bool:
@@ -533,35 +549,40 @@ def is_reply_to_bot(message: Message, bot_id: int | None, bot_username: str | No
 
 
 def is_mention_to_bot(message: Message, bot_id: int | None, bot_username: str | None) -> bool:
-    body = get_message_text(message)
     bot_name = _normalize_username(bot_username)
+    full_text = _message_full_text(message)
 
-    if body and bot_name:
-        lowered = body.lower()
-        if f"@{bot_name}" in lowered:
+    if bot_name and full_text and f"@{bot_name}" in full_text.lower():
+        return True
+
+    for entity in message.entities or ():
+        if _entity_targets_bot(message, entity, bot_id, bot_name):
             return True
 
-    for entity in _message_entities(message):
-        entity_name = entity_type_name(entity)
-
-        if entity_name == MessageEntityType.TEXT_MENTION.value and bot_id is not None:
-            mentioned_user = getattr(entity, "user", None)
-            if mentioned_user and mentioned_user.id == bot_id:
-                return True
-            continue
-
-        if entity_name != MessageEntityType.MENTION.value or not bot_name:
-            continue
-
-        try:
-            fragment = _normalize_username(message.parse_entity(entity))
-        except (RuntimeError, ValueError, IndexError, AttributeError):
-            fragment = None
-
-        if fragment == bot_name:
+    for entity in message.caption_entities or ():
+        if _entity_targets_bot(message, entity, bot_id, bot_name):
             return True
 
     return False
+
+
+def _entity_targets_bot(
+    message: Message,
+    entity: object,
+    bot_id: int | None,
+    bot_name: str | None,
+) -> bool:
+    entity_name = entity_type_name(entity)
+
+    if entity_name == MessageEntityType.TEXT_MENTION.value and bot_id is not None:
+        mentioned_user = getattr(entity, "user", None)
+        return bool(mentioned_user and mentioned_user.id == bot_id)
+
+    if entity_name != MessageEntityType.MENTION.value or not bot_name:
+        return False
+
+    fragment = _normalize_username(_parse_entity_fragment(message, entity))
+    return fragment == bot_name
 
 
 def should_reply(message: Message, bot_username: str | None, bot_id: int | None) -> bool:
@@ -786,7 +807,12 @@ async def on_ping(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message = update.effective_message
     if not message:
         return
-    await message.reply_text(apply_style_rules("жив. групповой режим ок."))
+    bot_id, bot_username = await get_bot_identity(context)
+    await message.reply_text(
+        apply_style_rules(
+            f"жив. id={bot_id} username=@{bot_username or 'нет'}."
+        )
+    )
 
 
 async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -834,10 +860,11 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     try:
         name = display_name(update)
         chat_id = chat.id
-        bot_id, bot_username = get_bot_identity(context)
+        bot_id, bot_username = await get_bot_identity(context)
         reply_needed = should_reply(message, bot_username, bot_id)
 
         raw_text = normalize_text(get_message_text(message))
+        full_text = _message_full_text(message)
         attachment = None
         if has_image_attachment(message) and reply_needed:
             attachment = await extract_image_attachment(message)
@@ -848,11 +875,19 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         if chat.type in (ChatType.GROUP, ChatType.SUPERGROUP):
             if not reply_needed:
-                logger.info(
-                    "Ignored group message chat=%s text=%r",
-                    chat_id,
-                    (raw_text or "")[:80],
-                )
+                if "@" in full_text:
+                    logger.warning(
+                        "Ignored group message with @ but no bot match chat=%s bot=@%s text=%r",
+                        chat_id,
+                        bot_username,
+                        full_text[:120],
+                    )
+                else:
+                    logger.info(
+                        "Ignored group message chat=%s text=%r",
+                        chat_id,
+                        (raw_text or "")[:80],
+                    )
                 return
             logger.info(
                 "Group message chat=%s user=%s mention=%s reply=%s has_photo=%s text=%r",
@@ -921,7 +956,7 @@ def main() -> None:
     app.add_error_handler(on_error)
     app.run_polling(
         allowed_updates=Update.ALL_TYPES,
-        drop_pending_updates=True,
+        drop_pending_updates=False,
         bootstrap_retries=-1,
     )
 
