@@ -168,7 +168,9 @@ REPLY_INSTRUCTIONS = (
     "Если спрашивают ник или имя — возьми из строки СОБЕСЕДНИК, не выдумывай. "
     "Никогда не пиши пользователю [SEARCH], [search] и подобные теги — это служебная метка. "
     "Если не хватает фактов, верни только одну строку: [SEARCH: короткий запрос]. "
-    "Если сообщение является чистым троллингом, спамом или пустой провокацией, верни ровно [SKIP] и ничего больше. "
+    "Если тебя позвали через @ или реплай — всегда отвечай текстом, не возвращай [SKIP]. "
+    "На провокации и троллинг — короткий ответ в образе (сухо, с иронией), без морали и без [SKIP]. "
+    "[SKIP] только если сообщение вообще не к тебе и это чистый спам без вопроса. "
     "Если сообщение содержит фото, картинку или скриншот, сначала разберись, что видно на изображении, и комментируй это как живой участник сообщества, без канцелярита. "
     "Если деталей не видно, честно скажи, что изображение мутное, обрезано или не читается."
 )
@@ -493,6 +495,18 @@ def format_user_payload(
 def is_skip_reply(reply: str) -> bool:
     normalized = reply.strip().strip('"').strip("'").upper()
     return normalized in SKIP_MARKERS
+
+
+def reply_instead_of_skip(user_text: str) -> str:
+    """When the model returns [SKIP] but the user @mentioned the bot, answer anyway."""
+    cleaned = normalize_text(user_text).lower()
+    if any(token in cleaned for token in ("трах", "секс", "sex", "еб", "хуй", "бля")):
+        return apply_style_rules(
+            "фантазии оставь. если хочешь поговорить — задай нормальный вопрос."
+        )
+    return apply_style_rules(
+        "ну такое. я на связи, но давай вопрос по делу."
+    )
 
 
 def contains_search_marker(text: str) -> bool:
@@ -998,7 +1012,29 @@ async def generate_reply(
         )
 
     if is_skip_reply(reply):
-        return ReplyOutcome(text=None, learnable=False, query=query, kind=kind)
+        logger.info("Model returned SKIP for %r, retrying once", query[:80])
+        retry_prompt = (
+            f"{user_text}\n\n"
+            "Тебя явно позвали в чат. Дай одну короткую реплику в образе ярослава вомитова. "
+            "Не используй [SKIP]. На провокации — сухо и с иронией, без морали."
+        )
+        try:
+            reply = await call_openai(retry_prompt)
+        except Exception:
+            logger.exception("OpenAI SKIP-retry failed")
+            return ReplyOutcome(
+                text=reply_instead_of_skip(current_text),
+                learnable=False,
+                query=query,
+                kind=kind,
+            )
+        if is_skip_reply(reply):
+            return ReplyOutcome(
+                text=reply_instead_of_skip(current_text),
+                learnable=False,
+                query=query,
+                kind=kind,
+            )
 
     search_query = resolve_search_query(reply, current_text)
     if search_query or contains_search_marker(reply):
@@ -1038,9 +1074,17 @@ async def generate_reply(
             )
 
         if is_skip_reply(reply):
-            return ReplyOutcome(text=None, learnable=False, query=query, kind=kind)
+            logger.info("Model returned SKIP after search for %r", query[:80])
+            return ReplyOutcome(
+                text=reply_instead_of_skip(current_text),
+                learnable=False,
+                query=query,
+                kind=kind,
+            )
 
     final_reply = apply_style_rules(reply)
+    if not final_reply:
+        final_reply = reply_instead_of_skip(current_text)
     if contains_search_marker(final_reply):
         final_reply = apply_style_rules(
             "поиск сдох, фактов нет. скажи честно что не нашел, без тегов search."
@@ -1230,15 +1274,11 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         if not outcome.text:
             if reply_needed:
                 logger.warning(
-                    "No reply text chat=%s mention=%s reply_to_bot=%s text=%r",
+                    "Empty reply chat=%s text=%r — sending error fallback",
                     chat_id,
-                    is_mention_to_bot(message, bot_id, bot_username),
-                    is_reply_to_bot(message, bot_id, bot_username),
                     (raw_text or "")[:80],
                 )
-                await message.reply_text(
-                    apply_style_rules("не смог ответить. напиши ещё раз с @ или реплаем на моё сообщение.")
-                )
+                await message.reply_text(apply_style_rules(FALLBACK_ERROR_REPLY))
             return
 
         add_message(chat_id, BOT_DISPLAY_NAME, outcome.text)
