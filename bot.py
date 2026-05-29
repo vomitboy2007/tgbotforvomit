@@ -659,16 +659,20 @@ def entity_type_name(entity: object) -> str:
 async def get_bot_identity(context: ContextTypes.DEFAULT_TYPE) -> tuple[int | None, str | None]:
     bot_data = context.application.bot_data
     bot_id = bot_data.get(BOT_DATA_ID_KEY)
-    bot_username = bot_data.get(BOT_DATA_USERNAME_KEY) or context.bot.username
+    bot_username = bot_data.get(BOT_DATA_USERNAME_KEY) or getattr(context.bot, "username", None)
 
+    # Always ensure we have fresh data (important for first messages after restart)
     if bot_id is None or not bot_username:
-        me = await context.bot.get_me()
-        bot_id = bot_id or me.id
-        bot_username = bot_username or me.username
-        bot_data[BOT_DATA_ID_KEY] = bot_id
-        bot_data[BOT_DATA_USERNAME_KEY] = _normalize_username(me.username)
+        try:
+            me = await context.bot.get_me()
+            bot_id = bot_id or me.id
+            bot_username = bot_username or me.username
+            bot_data[BOT_DATA_ID_KEY] = bot_id
+            bot_data[BOT_DATA_USERNAME_KEY] = _normalize_username(me.username)
+        except Exception:
+            logger.exception("Failed to refresh bot identity via get_me()")
 
-    return bot_id, _normalize_username(bot_username)
+    return bot_id, _normalize_username(bot_username) if bot_username else None
 
 
 def register_message_handlers(application: Application) -> None:
@@ -840,23 +844,29 @@ def is_mention_to_bot(message: Message, bot_id: int | None, bot_username: str | 
     if not bot_name:
         return False
 
+    # === Robust text-based detection (primary, most reliable in practice) ===
     texts = [
-        message.text,
-        message.caption,
-        _message_full_text(message),
-        get_message_text(message),
+        message.text or "",
+        message.caption or "",
+        _message_full_text(message) or "",
+        get_message_text(message) or "",
     ]
-    for chunk in texts:
-        if chunk and f"@{bot_name}" in chunk.lower():
-            return True
-        if chunk and bot_name in chunk.lower() and "@" in chunk:
-            return True
+    full_lower = " ".join(t.lower() for t in texts if t)
 
-    for entity in message.entities or ():
+    # Direct @username mention (most common and reliable)
+    if f"@{bot_name}" in full_lower:
+        return True
+
+    # Username with @ somewhere near it (catches some weird formatting)
+    if "@" in full_lower and bot_name in full_lower:
+        return True
+
+    # === Entity-based detection (official Telegram way) ===
+    for entity in (message.entities or ()):
         if _entity_targets_bot(message, entity, bot_id, bot_name):
             return True
 
-    for entity in message.caption_entities or ():
+    for entity in (message.caption_entities or ()):
         if _entity_targets_bot(message, entity, bot_id, bot_name):
             return True
 
@@ -1237,16 +1247,30 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         name = display_name(update)
         chat_id = chat.id
         bot_id, bot_username = await get_bot_identity(context)
+
+        # Very loud diagnostic for the most common user complaint ("bot doesn't reply in group")
+        if chat.type in (ChatType.GROUP, ChatType.SUPERGROUP):
+            is_reply = is_reply_to_bot(message, bot_id, bot_username)
+            is_mention = is_mention_to_bot(message, bot_id, bot_username)
+            logger.info(
+                "GROUP MSG | chat=%s mid=%s | bot_id=%s bot=@%s | is_reply_to_bot=%s is_mention=%s | kind=%s | text=%r",
+                chat.id,
+                message.message_id,
+                bot_id,
+                bot_username or "?",
+                is_reply,
+                is_mention,
+                _message_kind_summary(message),
+                (normalize_text(get_message_text(message)) or "")[:120],
+            )
+
         reply_needed = should_reply(message, bot_username, bot_id)
 
         if chat.type in (ChatType.GROUP, ChatType.SUPERGROUP):
             logger.info(
-                "Group update chat=%s mid=%s reply_needed=%s kind=%s text=%r",
+                "Group decision chat=%s reply_needed=%s (after should_reply)",
                 chat.id,
-                message.message_id,
                 reply_needed,
-                _message_kind_summary(message),
-                normalize_text(get_message_text(message))[:100],
             )
 
         raw_text = normalize_text(get_message_text(message))
