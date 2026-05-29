@@ -21,12 +21,18 @@ TELEGRAM_TOKEN=your_telegram_bot_token
 OPENAI_API_KEY=your_openai_api_key
 CONTEXT_WINDOW=15
 OPENAI_MODEL=gpt-4o-mini
+GOOGLE_API_KEY=your_google_api_key
+GOOGLE_CSE_ID=your_google_custom_search_engine_id
 ```
+
+Для фактов из интернета нужен Google Custom Search (Programmable Search Engine). Если ключей нет, бот попробует DuckDuckGo как запасной вариант.
 
 ## Поведение
 
 - В личных сообщениях бот отвечает на любой текст.
-- В группах отвечает только на реплай боту или упоминание `@username` бота.
+- В группах отвечает на **реплай** сообщению бота или **@username** бота (включая text mention без username).
+- Пишет строчными буквами, предложения заканчивает точкой, без «брат/братан» и без лишней любезности.
+- Если не знает фактов — ищет в Google (или DuckDuckGo fallback) и отвечает по результатам.
 - Фото и скриншоты бот тоже умеет анализировать, если на сообщение есть право ответа по тем же правилам.
 - Команда `/lore` отправляет случайный факт с `https://vomitboycom.neocities.org/`.
 - История хранится в памяти процесса как скользящее окно `chat_id -> deque`.
@@ -38,8 +44,9 @@ OPENAI_MODEL=gpt-4o-mini
 
 1. Запушьте репозиторий на GitHub.
 2. В Railway создайте `New Project -> Deploy from GitHub repo`.
-3. В `Variables` добавьте `TELEGRAM_TOKEN`, `OPENAI_API_KEY`, `CONTEXT_WINDOW` и при необходимости `OPENAI_MODEL`.
-4. Railway подхватит `Procfile` и запустит worker:
+3. В `Variables` добавьте `TELEGRAM_TOKEN`, `OPENAI_API_KEY`, `CONTEXT_WINDOW`, при необходимости `OPENAI_MODEL`, `GOOGLE_API_KEY`, `GOOGLE_CSE_ID`.
+4. В @BotFather для групп: **Bot Settings → Group Privacy → Turn off**, если хотите, чтобы бот видел все сообщения. С включённой privacy бот всё равно получает reply и mention.
+5. Railway подхватит `Procfile` и запустит worker:
 
 ```procfile
 worker: python bot.py
@@ -52,6 +59,7 @@ worker: python bot.py
 | `bot.py` | Long polling, OpenAI, Telegram handlers, память чата и локальное обучение |
 | `prompt_loader.py` | Сборка runtime-промпта из `prompt.md` |
 | `corpus.py` | Извлечение примеров из Telegram HTML/TXT экспорта |
+| `web_search.py` | Google Custom Search + DuckDuckGo fallback |
 | `prompt.md` | Персона, стиль, правила ответа и блок деплоя |
 | `Procfile` | Точка входа Railway worker |
 | `.env.example` | Шаблон переменных окружения без секретов |

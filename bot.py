@@ -22,10 +22,11 @@ from pathlib import Path
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from telegram import Update
-from telegram.constants import ChatType, ParseMode
+from telegram.constants import ChatType, MessageEntityType, ParseMode
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
 from prompt_loader import build_system_prompt
+from web_search import format_search_context, search_web
 
 load_dotenv()
 
@@ -124,11 +125,19 @@ FALLBACK_NO_API_REPLY = "ладно признаюсь мозги в облак�
 FALLBACK_ERROR_REPLY = "что то сломалось в нейронке. потом попробуй"
 REPLY_INSTRUCTIONS = (
     "Ответь только текстом реплики для Telegram. "
+    "Пиши строчными буквами, каждое предложение заканчивай точкой. "
+    "Не используй брат, братан, бро и похожую фамильярность. "
+    "Не будь излишне любезным и восхищённым. "
+    "Если не хватает фактов, верни только одну строку [SEARCH: запрос]. "
     "Если сообщение является чистым троллингом, спамом или пустой провокацией, верни ровно [SKIP] и ничего больше. "
     "Если сообщение содержит фото, картинку или скриншот, сначала разберись, что видно на изображении, и комментируй это как живой участник сообщества, без канцелярита. "
     "Если деталей не видно, честно скажи, что изображение мутное, обрезано или не читается."
 )
+SEARCH_REQUEST_RE = re.compile(r"^\[SEARCH:\s*(.+?)\s*\]\s*$", re.IGNORECASE | re.DOTALL)
+FAMILIARITY_RE = re.compile(r"\b(братанчик|братан|брат|бро)\b", re.IGNORECASE)
 TOKEN_RE = re.compile(r"[0-9A-Za-zА-Яа-яЁё_]+", re.UNICODE)
+BOT_DATA_ID_KEY = "bot_id"
+BOT_DATA_USERNAME_KEY = "bot_username"
 
 context_store: dict[int, deque[str]] = {}
 SYSTEM_PROMPT = build_system_prompt()
@@ -411,6 +420,57 @@ def is_skip_reply(reply: str) -> bool:
     return normalized in SKIP_MARKERS
 
 
+def parse_search_request(reply: str) -> str | None:
+    match = SEARCH_REQUEST_RE.match(reply.strip())
+    if not match:
+        return None
+    query = normalize_text(match.group(1))
+    return query or None
+
+
+def apply_style_rules(reply: str) -> str:
+    if is_skip_reply(reply):
+        return reply
+
+    text = FAMILIARITY_RE.sub("", reply)
+    text = re.sub(r"[\s,;:]+", " ", text)
+    text = normalize_text(text).lower()
+    if not text:
+        return text
+
+    if text[-1] not in ".!?…":
+        text += "."
+    return text
+
+
+def entity_type_name(entity: object) -> str:
+    entity_type = getattr(entity, "type", None)
+    if entity_type is None:
+        return ""
+    return str(getattr(entity_type, "value", entity_type)).lower()
+
+
+def get_bot_identity(context: ContextTypes.DEFAULT_TYPE) -> tuple[int | None, str | None]:
+    bot_data = context.application.bot_data
+    bot_id = bot_data.get(BOT_DATA_ID_KEY)
+    bot_username = bot_data.get(BOT_DATA_USERNAME_KEY) or context.bot.username
+
+    if bot_id is None:
+        bot_id = getattr(context.bot, "id", None)
+
+    if bot_username:
+        bot_username = bot_username.lstrip("@").lower()
+
+    return bot_id, bot_username
+
+
+async def post_init(application: Application) -> None:
+    me = await application.bot.get_me()
+    application.bot_data[BOT_DATA_ID_KEY] = me.id
+    application.bot_data[BOT_DATA_USERNAME_KEY] = (me.username or "").lower()
+    logger.info("Bot ready: id=%s username=@%s", me.id, me.username)
+
+
 def build_lore_reply() -> tuple[str, str]:
     fact = random.choice(LORE_FACTS)
     plain_reply = f"а ты знал, что {fact}, чекни - {LORE_URL}"
@@ -420,6 +480,56 @@ def build_lore_reply() -> tuple[str, str]:
         f"чекни - {LORE_URL}"
     )
     return plain_reply, html_reply
+
+
+def is_reply_to_bot(message: object, bot_id: int | None, bot_username: str | None) -> bool:
+    reply = getattr(message, "reply_to_message", None)
+    if not reply:
+        return False
+
+    reply_user = getattr(reply, "from_user", None)
+    if not reply_user:
+        return False
+
+    if bot_id is not None and getattr(reply_user, "id", None) == bot_id:
+        return True
+
+    if getattr(reply_user, "is_bot", False):
+        reply_username = getattr(reply_user, "username", None)
+        if bot_username and reply_username and reply_username.lower() == bot_username:
+            return True
+        if bot_id is not None and getattr(reply_user, "id", None) == bot_id:
+            return True
+
+    return False
+
+
+def is_mention_to_bot(message: object, bot_id: int | None, bot_username: str | None) -> bool:
+    body = get_message_text(message)
+    if not body:
+        return False
+
+    if bot_username:
+        bot_handle = f"@{bot_username.lower()}"
+        if bot_handle in body.lower():
+            return True
+
+    for entity in get_message_entities(message):
+        entity_name = entity_type_name(entity)
+        if entity_name == MessageEntityType.MENTION.value:
+            offset = getattr(entity, "offset", 0)
+            length = getattr(entity, "length", 0)
+            mention = body[offset : offset + length].lower()
+            if bot_username and mention == f"@{bot_username.lower()}":
+                return True
+            continue
+
+        if entity_name == MessageEntityType.TEXT_MENTION.value and bot_id is not None:
+            mentioned_user = getattr(entity, "user", None)
+            if mentioned_user and getattr(mentioned_user, "id", None) == bot_id:
+                return True
+
+    return False
 
 
 def should_reply(message: object, bot_username: str | None, bot_id: int | None) -> bool:
@@ -432,35 +542,16 @@ def should_reply(message: object, bot_username: str | None, bot_id: int | None) 
     if not body and not attachment_present:
         return False
 
-    if getattr(chat, "type", None) == ChatType.PRIVATE:
+    chat_type = getattr(chat, "type", None)
+    if chat_type == ChatType.PRIVATE:
         return True
 
-    reply = getattr(message, "reply_to_message", None)
-    if reply and getattr(reply, "from_user", None):
-        reply_user = reply.from_user
-        if bot_id is not None and getattr(reply_user, "id", None) == bot_id:
+    if chat_type in (ChatType.GROUP, ChatType.SUPERGROUP):
+        if is_reply_to_bot(message, bot_id, bot_username):
             return True
-        if bot_username and getattr(reply_user, "username", None):
-            if reply_user.username.lower() == bot_username.lower():
-                return True
-
-    if not bot_username:
+        if is_mention_to_bot(message, bot_id, bot_username):
+            return True
         return False
-
-    bot_handle = f"@{bot_username.lower()}"
-    body_lower = body.lower()
-    if bot_handle in body_lower:
-        return True
-
-    for entity in get_message_entities(message):
-        entity_type = getattr(entity, "type", None)
-        if entity_type != "mention":
-            continue
-        offset = getattr(entity, "offset", 0)
-        length = getattr(entity, "length", 0)
-        mention = get_message_text(message)[offset : offset + length]
-        if mention.lower() == bot_handle:
-            return True
 
     return False
 
@@ -544,6 +635,25 @@ async def extract_image_attachment(message: object) -> AttachmentInfo | None:
     return None
 
 
+async def call_openai(
+    user_content: str | list[dict[str, object]],
+) -> str:
+    client = get_openai_client()
+    if not client:
+        raise RuntimeError("OPENAI_API_KEY is not set")
+
+    response = await client.chat.completions.create(
+        model=OPENAI_MODEL,
+        temperature=0.9,
+        max_tokens=400,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_content},
+        ],
+    )
+    return (response.choices[0].message.content or "").strip()
+
+
 async def generate_reply(
     chat_id: int,
     current_name: str,
@@ -574,40 +684,65 @@ async def generate_reply(
             user_text = f"{user_text}\n\n[Медиа: {attachment.note}]"
         user_content = user_text
 
-    client = get_openai_client()
-    if not client:
+    if not get_openai_client():
         logger.error("OPENAI_API_KEY is not set")
         return ReplyOutcome(
-            text=FALLBACK_NO_API_REPLY,
+            text=apply_style_rules(FALLBACK_NO_API_REPLY),
             learnable=False,
             query=query,
             kind=kind,
         )
 
     try:
-        response = await client.chat.completions.create(
-            model=OPENAI_MODEL,
-            temperature=0.9,
-            max_tokens=400,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_content},
-            ],
-        )
+        reply = await call_openai(user_content)
     except Exception:
         logger.exception("OpenAI request failed")
         return ReplyOutcome(
-            text=FALLBACK_ERROR_REPLY,
+            text=apply_style_rules(FALLBACK_ERROR_REPLY),
             learnable=False,
             query=query,
             kind=kind,
         )
 
-    reply = (response.choices[0].message.content or "").strip()
     if is_skip_reply(reply):
         return ReplyOutcome(text=None, learnable=False, query=query, kind=kind)
 
-    return ReplyOutcome(text=reply, learnable=True, query=query, kind=kind)
+    search_query = parse_search_request(reply)
+    if search_query:
+        results = await search_web(search_query)
+        search_block = format_search_context(results)
+        follow_up = (
+            f"{user_payload}\n\n"
+            f"{search_block}\n\n"
+            f"{REPLY_INSTRUCTIONS}\n"
+            "Дай финальный ответ по фактам из поиска. Не возвращай [SEARCH] повторно."
+        )
+        follow_up_content: str | list[dict[str, object]]
+        if isinstance(user_content, list):
+            follow_up_content = [{"type": "text", "text": follow_up}, *user_content[1:]]
+        else:
+            follow_up_content = follow_up
+
+        try:
+            reply = await call_openai(follow_up_content)
+        except Exception:
+            logger.exception("OpenAI follow-up after search failed")
+            return ReplyOutcome(
+                text=apply_style_rules(FALLBACK_ERROR_REPLY),
+                learnable=False,
+                query=query,
+                kind=kind,
+            )
+
+        if is_skip_reply(reply):
+            return ReplyOutcome(text=None, learnable=False, query=query, kind=kind)
+
+    return ReplyOutcome(
+        text=apply_style_rules(reply),
+        learnable=True,
+        query=query,
+        kind=kind,
+    )
 
 
 async def on_lore(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -637,6 +772,10 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     if not message or not chat:
         return
 
+    user = update.effective_user
+    if user and user.is_bot:
+        return
+
     name = display_name(update)
     raw_text = normalize_text(get_message_text(message))
     attachment = await extract_image_attachment(message) if has_image_attachment(message) else None
@@ -646,9 +785,18 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     chat_id = chat.id
-    bot_username = context.bot.username
-    bot_id = getattr(context.bot, "id", None)
+    bot_id, bot_username = get_bot_identity(context)
     reply_needed = should_reply(message, bot_username, bot_id)
+
+    if chat.type in (ChatType.GROUP, ChatType.SUPERGROUP) and not reply_needed:
+        logger.debug(
+            "Ignored group message chat=%s bot_id=%s bot_username=%s reply_to_bot=%s mention=%s",
+            chat_id,
+            bot_id,
+            bot_username,
+            is_reply_to_bot(message, bot_id, bot_username),
+            is_mention_to_bot(message, bot_id, bot_username),
+        )
 
     outcome = ReplyOutcome(
         text=None,
@@ -691,10 +839,20 @@ def main() -> None:
         LEARNING_STORE_PATH,
     )
 
-    app = Application.builder().token(TELEGRAM_TOKEN).build()
+    app = (
+        Application.builder()
+        .token(TELEGRAM_TOKEN)
+        .post_init(post_init)
+        .build()
+    )
     app.add_handler(CommandHandler("lore", on_lore))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_chat_message))
-    app.add_handler(MessageHandler(filters.PHOTO | filters.Document.IMAGE, handle_chat_message))
+    incoming = (
+        filters.TEXT
+        | filters.CAPTION
+        | filters.PHOTO
+        | filters.Document.IMAGE
+    ) & ~filters.COMMAND
+    app.add_handler(MessageHandler(incoming, handle_chat_message))
     app.run_polling(
         allowed_updates=Update.ALL_TYPES,
         drop_pending_updates=True,
