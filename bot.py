@@ -867,6 +867,15 @@ def is_mention_to_bot(message: Message, bot_id: int | None, bot_username: str | 
     if "@" in full_lower and bot_name in full_lower:
         return True
 
+    # === Special case for anonymous admins ("Send as Group" / анонимно от лица группы) ===
+    # When an admin posts anonymously, Telegram sets sender_chat, and mention entities
+    # can be unreliable or missing. In this mode people often still type the bot's name.
+    # We become more permissive: if the bot's username appears in the text at all,
+    # we treat the message as directed at the bot.
+    sender_chat = getattr(message, "sender_chat", None)
+    if sender_chat and bot_name and bot_name in full_lower:
+        return True
+
     # === Entity-based detection (official Telegram way) ===
     for entity in (message.entities or ()):
         if _entity_targets_bot(message, entity, bot_id, bot_name):
@@ -910,10 +919,21 @@ def should_reply(message: Message, bot_username: str | None, bot_id: int | None)
         if is_mention_to_bot(message, bot_id, bot_username):
             return True
 
+        # === Anonymous admin ("Send as Group") fallback ===
+        # When you (or other admins) post with "Оставаться анонимным", sender_chat is set.
+        # The mention detection above now has extra logic for this case.
+        # As an ultimate fallback, if the message is from sender_chat and contains the bot name,
+        # we treat it as a direct address (very common when admins post as the group).
+        sender_chat = getattr(message, "sender_chat", None)
+        body = normalize_text(get_message_text(message))
+        if sender_chat and bot_username:
+            bot_name = _normalize_username(bot_username)
+            if bot_name and body and bot_name in body.lower():
+                return True
+
         # Proactive replies in groups: respond to messages strongly related to the vomitboy universe
         # even without explicit @ (e.g. people talking about "ярик", "тошнотики", "immortals", "diet" etc.)
         # This makes the bot feel alive in the chat without violating the "молчи на общий флуд" rule.
-        body = normalize_text(get_message_text(message))
         if body and SITE_LORE.is_lore_topic(body):
             return True
 
@@ -1270,14 +1290,17 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             sender_user = update.effective_user
             sender_chat = getattr(message, "sender_chat", None)  # channel / anonymous admin posts
 
+            is_anonymous = bool(sender_chat)  # "Send as Group" / анонимно от лица группы
+
             logger.info(
-                "GROUP MSG | chat=%s mid=%s | bot=@%s | sender_user_id=%s sender_chat=%s | "
+                "GROUP MSG | chat=%s mid=%s | bot=@%s | sender_user_id=%s sender_chat=%s | anonymous=%s | "
                 "is_reply=%s is_mention=%s | kind=%s | text=%r",
                 chat.id,
                 message.message_id,
                 bot_username or "?",
                 getattr(sender_user, "id", None),
                 getattr(sender_chat, "id", None) or getattr(sender_chat, "username", None),
+                is_anonymous,
                 is_reply,
                 is_mention,
                 _message_kind_summary(message),
