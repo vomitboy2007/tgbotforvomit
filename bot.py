@@ -24,6 +24,7 @@ from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from telegram import Message, Update
 from telegram.constants import ChatType, MessageEntityType, ParseMode
+from telegram.error import Conflict
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
 from prompt_loader import build_system_prompt
@@ -939,7 +940,15 @@ async def on_ping(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
-    logger.exception("Unhandled bot error", exc_info=context.error)
+    error = context.error
+    if isinstance(error, Conflict):
+        logger.error(
+            "Telegram Conflict: two processes poll the same TELEGRAM_TOKEN. "
+            "Stop local 'python bot.py', set Railway replicas to 1, remove duplicate services."
+        )
+        return
+
+    logger.exception("Unhandled bot error", exc_info=error)
     if isinstance(update, Update) and update.effective_message:
         try:
             await update.effective_message.reply_text(

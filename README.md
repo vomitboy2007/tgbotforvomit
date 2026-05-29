@@ -53,6 +53,18 @@ SEARCH_MAX_RESULTS=5
 worker: python bot.py
 ```
 
+6. В сервисе Railway: **Settings → Scaling / Replicas = 1**. Long polling не работает с двумя инстансами.
+
+### Ошибка `Conflict: terminated by other getUpdates request`
+
+Один токен бота может опрашивать Telegram **только один процесс**.
+
+1. Останови локальный `python bot.py`, если он запущен на ПК.
+2. Railway → сервис бота → **Replicas = 1** (в репо зафиксировано `numReplicas: 1` в `railway.json`).
+3. Убедись, что нет **второго** деплоя/сервиса с тем же `TELEGRAM_TOKEN`.
+4. Сделай **Redeploy** и подожди 1–2 минуты, пока старый контейнер остановится.
+5. Если конфликт не пропадает: `railway scale 1` в CLI или временно удали лишний сервис в проекте.
+
 ## Файлы
 
 | Файл | Назначение |
