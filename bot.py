@@ -216,12 +216,12 @@ GROUP_INCOMING = (
 
 # === Safety / hardening constants (added during senior review) ===
 MAX_USER_TEXT_CHARS = 1800          # hard cap before we even touch the LLM (cost + injection control)
-MIN_REPLY_INTERVAL_SEC = 3.2        # simple per-chat cooldown to prevent spam / cost explosion
+MIN_REPLY_INTERVAL_SEC = 2.0        # per-user cooldown inside a chat (prevents one person from spamming the whole group)
 LEARNING_WRITE_DEBOUNCE_SEC = 1.5   # batch learning writes a bit
 
 context_store: dict[int, deque[str]] = {}
 context_lock = asyncio.Lock()
-_last_reply_ts: dict[int, float] = {}
+_last_user_reply_ts: dict[int, dict[int, float]] = {}   # chat_id -> {user_id: last_reply_time}
 _last_reply_lock = asyncio.Lock()
 
 # Learning writes are moved off the hot path via a queue + background writer task
@@ -437,15 +437,21 @@ def cap_user_text(text: str) -> str:
     return cleaned[:MAX_USER_TEXT_CHARS].rstrip() + "… [обрезано]"
 
 
-async def can_reply_now(chat_id: int) -> bool:
-    """Simple per-chat rate limit to stop spam and runaway costs."""
+async def can_reply_now(chat_id: int, user_id: int | None) -> bool:
+    """Per-user rate limit inside a chat.
+    Prevents one heavy tester (e.g. the owner) from blocking everyone else in the group.
+    """
+    if user_id is None:
+        user_id = 0  # anonymous / channel posts get a shared slot
+
     loop = asyncio.get_running_loop()
     now = loop.time()
     async with _last_reply_lock:
-        last = _last_reply_ts.get(chat_id, 0.0)
+        per_chat = _last_user_reply_ts.setdefault(chat_id, {})
+        last = per_chat.get(user_id, 0.0)
         if now - last < MIN_REPLY_INTERVAL_SEC:
             return False
-        _last_reply_ts[chat_id] = now
+        per_chat[user_id] = now
         return True
 
 
@@ -1260,12 +1266,18 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         if chat.type in (ChatType.GROUP, ChatType.SUPERGROUP):
             is_reply = is_reply_to_bot(message, bot_id, bot_username)
             is_mention = is_mention_to_bot(message, bot_id, bot_username)
+
+            sender_user = update.effective_user
+            sender_chat = getattr(message, "sender_chat", None)  # channel / anonymous admin posts
+
             logger.info(
-                "GROUP MSG | chat=%s mid=%s | bot_id=%s bot=@%s | is_reply_to_bot=%s is_mention=%s | kind=%s | text=%r",
+                "GROUP MSG | chat=%s mid=%s | bot=@%s | sender_user_id=%s sender_chat=%s | "
+                "is_reply=%s is_mention=%s | kind=%s | text=%r",
                 chat.id,
                 message.message_id,
-                bot_id,
                 bot_username or "?",
+                getattr(sender_user, "id", None),
+                getattr(sender_chat, "id", None) or getattr(sender_chat, "username", None),
                 is_reply,
                 is_mention,
                 _message_kind_summary(message),
@@ -1276,7 +1288,7 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         if chat.type in (ChatType.GROUP, ChatType.SUPERGROUP):
             logger.info(
-                "Group decision chat=%s reply_needed=%s (after should_reply)",
+                "Group decision chat=%s reply_needed=%s (after should_reply + lore check)",
                 chat.id,
                 reply_needed,
             )
@@ -1303,8 +1315,13 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             return
 
         # Rate limit expensive LLM calls (protects wallet and prevents self-DoS)
-        if reply_needed and not await can_reply_now(chat_id):
-            logger.info("Rate limited chat=%s (too many messages)", chat_id)
+        effective_user_id = update.effective_user.id if update.effective_user else None
+        if reply_needed and not await can_reply_now(chat_id, effective_user_id):
+            logger.warning(
+                "RATE LIMITED chat=%s user_id=%s — this user is hitting the per-user cooldown. "
+                "Other people in the group can still mention the bot.",
+                chat_id, effective_user_id
+            )
             # We still record the user message for context, but skip LLM
             await safe_add_message(
                 chat_id,
