@@ -1,19 +1,23 @@
-"""Build the author system prompt from prompt.md and local archives."""
+"""Build the runtime system prompt from prompt.md and local archives."""
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from corpus import format_corpus_block, load_channel_samples
 
 ROOT = Path(__file__).resolve().parent
 PROMPT_FILE = ROOT / "prompt.md"
-BLOCK6_MARKER = "## Блок 6"
+DEPLOY_BLOCK_RE = re.compile(r"^##\s*Блок\s+6\b.*$", re.IGNORECASE | re.MULTILINE)
 
-AUTHOR_BIO = """
-Кратко о себе (из автобиографии на сайте):
-Ярик, основатель vomitboy.com с 2021. Бывший админ пабликов, сейчас врач.
-Темы: подпольная эстетика, двач-архивы, вайбкодинг, одиночество, инцельская ирония, еда с помойки/светофора, медицинский бэкграунд как контраст образу.
+RUNTIME_APPENDIX = """
+---
+Технические правила рантайма:
+- Не пересказывай историю чата.
+- Не вставляй имя автора перед ответом.
+- Если нужно молчать, верни строго [SKIP].
+- Если человек пишет о реальном риске самоповреждения, не романтизируй и не подыгрывай: коротко попроси написать живому человеку рядом или в экстренную службу.
 """.strip()
 
 
@@ -21,20 +25,16 @@ def load_base_prompt() -> str:
     if not PROMPT_FILE.is_file():
         raise FileNotFoundError(f"Missing {PROMPT_FILE}")
 
-    text = PROMPT_FILE.read_text(encoding="utf-8")
-    if BLOCK6_MARKER in text:
-        text = text.split(BLOCK6_MARKER, 1)[0].strip()
-
-    # Drop the title line if it's only a role description header.
-    lines = text.splitlines()
-    if lines and lines[0].strip().startswith("Ты —"):
-        text = "\n".join(lines[1:]).strip()
+    text = PROMPT_FILE.read_text(encoding="utf-8").strip()
+    match = DEPLOY_BLOCK_RE.search(text)
+    if match:
+        text = text[: match.start()].strip()
 
     return text
 
 
 def build_system_prompt() -> str:
-    base = load_base_prompt()
+    base_prompt = load_base_prompt()
     samples = load_channel_samples()
-    corpus = format_corpus_block(samples)
-    return f"{base}\n\n{AUTHOR_BIO}{corpus}"
+    corpus_block = format_corpus_block(samples)
+    return f"{base_prompt}\n\n{RUNTIME_APPENDIX}{corpus_block}".strip()

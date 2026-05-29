@@ -1,24 +1,114 @@
-"""Extract sample posts from Telegram HTML exports for the system prompt."""
+"""Load representative messages from local Telegram exports."""
 
 from __future__ import annotations
 
-import html
 import re
+from html.parser import HTMLParser
 from pathlib import Path
+from typing import Iterable
 
-TEXT_BLOCK_RE = re.compile(
-    r'<div class="text">\s*(.*?)\s*</div>',
-    re.DOTALL | re.IGNORECASE,
-)
-TAG_RE = re.compile(r"<[^>]+>")
 WHITESPACE_RE = re.compile(r"\s+")
+TEXT_EXPORT_EXTENSIONS = {".txt", ".md", ""}
+HTML_EXPORT_EXTENSIONS = {".html", ".htm"}
+EMOJI_RE = re.compile(
+    "["
+    "\U0001f000-\U0001faff"
+    "\u2600-\u27bf"
+    "]"
+)
 
 
-def _clean_fragment(raw: str) -> str:
-    text = TAG_RE.sub(" ", raw)
-    text = html.unescape(text)
-    text = WHITESPACE_RE.sub(" ", text).strip()
-    return text
+class TelegramTextParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.messages: list[str] = []
+        self._capture_depth = 0
+        self._parts: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if self._capture_depth:
+            if tag == "br":
+                self._parts.append("\n")
+                return
+            self._capture_depth += 1
+            return
+
+        if tag != "div":
+            return
+
+        attr_map = dict(attrs)
+        classes = set((attr_map.get("class") or "").split())
+        if "text" in classes and "bold" not in classes:
+            self._capture_depth = 1
+            self._parts = []
+
+    def handle_endtag(self, tag: str) -> None:
+        if not self._capture_depth:
+            return
+
+        self._capture_depth -= 1
+        if self._capture_depth == 0:
+            text = clean_text("".join(self._parts))
+            if text:
+                self.messages.append(text)
+            self._parts = []
+
+    def handle_data(self, data: str) -> None:
+        if self._capture_depth:
+            self._parts.append(data)
+
+
+def clean_text(text: str) -> str:
+    return WHITESPACE_RE.sub(" ", text).strip()
+
+
+def candidate_export_paths(root: Path) -> list[Path]:
+    configured = root / "index" / "vn-game" / "yaroslav" / "messages"
+    candidates: list[Path] = []
+
+    if configured.is_file():
+        candidates.append(configured)
+    if configured.with_suffix(".html").is_file():
+        candidates.append(configured.with_suffix(".html"))
+    if configured.is_dir():
+        candidates.extend(sorted(configured.glob("*.html")))
+        candidates.extend(sorted(configured.glob("*.txt")))
+
+    fallback = root / "messages.html"
+    if fallback.is_file():
+        candidates.append(fallback)
+
+    unique: list[Path] = []
+    seen: set[Path] = set()
+    for path in candidates:
+        resolved = path.resolve()
+        if resolved not in seen:
+            seen.add(resolved)
+            unique.append(path)
+
+    return unique
+
+
+def extract_messages(path: Path) -> list[str]:
+    content = path.read_text(encoding="utf-8", errors="ignore")
+    suffix = path.suffix.lower()
+
+    if suffix in HTML_EXPORT_EXTENSIONS or "<div" in content:
+        parser = TelegramTextParser()
+        parser.feed(content)
+        return parser.messages
+
+    if suffix in TEXT_EXPORT_EXTENSIONS:
+        return [clean_text(line) for line in content.splitlines()]
+
+    return []
+
+
+def iter_export_messages(paths: Iterable[Path]) -> Iterable[str]:
+    for path in paths:
+        if not path.is_file():
+            continue
+        yield from extract_messages(path)
 
 
 def load_channel_samples(
@@ -29,22 +119,22 @@ def load_channel_samples(
     max_len: int = 280,
 ) -> list[str]:
     root = Path(__file__).resolve().parent
-    export_path = path or root / "messages.html"
-    if not export_path.is_file():
-        return []
+    paths = [path] if path else candidate_export_paths(root)
 
-    content = export_path.read_text(encoding="utf-8", errors="ignore")
     seen: set[str] = set()
     samples: list[str] = []
 
-    for match in TEXT_BLOCK_RE.finditer(content):
-        cleaned = _clean_fragment(match.group(1))
+    for message in iter_export_messages(paths):
+        cleaned = clean_text(message)
         if not cleaned or cleaned in seen:
             continue
         if len(cleaned) < min_len or len(cleaned) > max_len:
             continue
-        if cleaned.startswith("http"):
+        if cleaned.startswith(("http://", "https://")):
             continue
+        if EMOJI_RE.search(cleaned):
+            continue
+
         seen.add(cleaned)
         samples.append(cleaned)
         if len(samples) >= max_samples:
@@ -56,8 +146,10 @@ def load_channel_samples(
 def format_corpus_block(samples: list[str]) -> str:
     if not samples:
         return ""
-    lines = "\n".join(f"- {s}" for s in samples)
+
+    lines = "\n".join(f"- {sample}" for sample in samples)
     return (
-        "\n\n---\nПримеры реальных постов канала (тон и лексика):\n"
+        "\n\n---\n"
+        "Примеры реальных сообщений канала для тона и лексики:\n"
         f"{lines}\n"
     )
