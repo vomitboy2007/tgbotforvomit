@@ -12,6 +12,7 @@ import logging
 import os
 import random
 import re
+import sys
 from collections import deque
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
@@ -110,6 +111,36 @@ LEARNING_STORE_PATH = Path(
 LEARNING_LIMIT = read_int_env("LEARNING_LIMIT", 3, minimum=1)
 LEARNING_STORE_MAX = read_int_env("LEARNING_STORE_MAX", 500, minimum=50)
 IMAGE_MAX_BYTES = read_int_env("IMAGE_MAX_BYTES", 8 * 1024 * 1024, minimum=1024 * 1024)
+WEBHOOK_PATH = os.environ.get("WEBHOOK_PATH", "vomitbot-webhook").strip().strip("/") or "vomitbot-webhook"
+HTTP_PORT = read_int_env("PORT", 8080, minimum=1)
+
+
+def resolve_webhook_base_url() -> str | None:
+    explicit = os.environ.get("WEBHOOK_URL", "").strip().rstrip("/")
+    if explicit:
+        return explicit
+
+    domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "").strip()
+    if domain:
+        return f"https://{domain}"
+
+    return None
+
+
+def use_webhook_mode() -> bool:
+    force_poll = os.environ.get("USE_POLLING", "").strip().lower() in ("1", "true", "yes")
+    if force_poll:
+        return False
+
+    force_webhook = os.environ.get("USE_WEBHOOK", "").strip().lower() in ("1", "true", "yes")
+    base = resolve_webhook_base_url()
+    if force_webhook:
+        return bool(base)
+    return bool(base)
+
+
+WEBHOOK_BASE_URL = resolve_webhook_base_url()
+USE_WEBHOOK = use_webhook_mode()
 
 SKIP_MARKERS = {"", "SKIP", "[SKIP]", "[SILENCE]"}
 BOT_DISPLAY_NAME = "Ярослав Вомитов"
@@ -572,11 +603,45 @@ def register_message_handlers(application: Application) -> None:
 
 
 async def post_init(application: Application) -> None:
-    await application.bot.delete_webhook(drop_pending_updates=True)
     me = await application.bot.get_me()
     application.bot_data[BOT_DATA_ID_KEY] = me.id
     application.bot_data[BOT_DATA_USERNAME_KEY] = _normalize_username(me.username)
-    logger.info("Bot ready: id=%s username=@%s", me.id, me.username)
+
+    if USE_WEBHOOK and WEBHOOK_BASE_URL:
+        webhook_url = f"{WEBHOOK_BASE_URL}/{WEBHOOK_PATH}"
+        await application.bot.set_webhook(
+            url=webhook_url,
+            allowed_updates=Update.ALL_TYPES,
+            drop_pending_updates=True,
+        )
+        info = await application.bot.get_webhook_info()
+        logger.info(
+            "Webhook mode url=%s pending_updates=%s bot=@%s",
+            webhook_url,
+            info.pending_update_count,
+            me.username,
+        )
+        return
+
+    await application.bot.delete_webhook(drop_pending_updates=True)
+    info = await application.bot.get_webhook_info()
+    if info.url:
+        logger.warning("Cleared stale webhook url=%s before polling", info.url)
+    logger.info("Polling mode bot id=%s username=@%s", me.id, me.username)
+
+
+def is_get_updates_conflict(err: BaseException | None) -> bool:
+    visited: set[int] = set()
+    current = err
+    while current is not None and id(current) not in visited:
+        visited.add(id(current))
+        if isinstance(current, Conflict):
+            return True
+        message = str(current)
+        if "Conflict" in message and "getUpdates" in message:
+            return True
+        current = current.__cause__ or current.__context__
+    return False
 
 
 def build_lore_reply(chat_id: int) -> tuple[str, str]:
@@ -941,12 +1006,12 @@ async def on_ping(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     error = context.error
-    if isinstance(error, Conflict):
+    if is_get_updates_conflict(error if isinstance(error, BaseException) else None):
         logger.error(
-            "Telegram Conflict: two processes poll the same TELEGRAM_TOKEN. "
-            "Stop local 'python bot.py', set Railway replicas to 1, remove duplicate services."
+            "Telegram getUpdates conflict: another poller uses this token. "
+            "Stop local bot.py, set Railway replicas=1, redeploy once. Exiting."
         )
-        return
+        sys.exit(1)
 
     logger.exception("Unhandled bot error", exc_info=error)
     if isinstance(update, Update) and update.effective_message:
@@ -1087,8 +1152,14 @@ def main() -> None:
     if not TELEGRAM_TOKEN:
         raise SystemExit("TELEGRAM_TOKEN is required")
 
+    transport = "webhook" if USE_WEBHOOK and WEBHOOK_BASE_URL else "polling"
     logger.info(
-        "Starting bot (context=%s, model=%s, openai=%s, token=%s, memory=%s, lore=%s)",
+        "Starting bot transport=%s port=%s webhook_base=%s path=%s "
+        "(context=%s, model=%s, openai=%s, token=%s, memory=%s, lore=%s)",
+        transport,
+        HTTP_PORT,
+        WEBHOOK_BASE_URL or "(none)",
+        WEBHOOK_PATH,
         CONTEXT_WINDOW,
         OPENAI_MODEL,
         "set" if OPENAI_API_KEY else "missing",
@@ -1107,9 +1178,22 @@ def main() -> None:
     app.add_handler(CommandHandler("lore", on_lore))
     app.add_handler(CommandHandler("ping", on_ping))
     app.add_error_handler(on_error)
+
+    if USE_WEBHOOK and WEBHOOK_BASE_URL:
+        webhook_url = f"{WEBHOOK_BASE_URL}/{WEBHOOK_PATH}"
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=HTTP_PORT,
+            url_path=WEBHOOK_PATH,
+            webhook_url=webhook_url,
+            allowed_updates=Update.ALL_TYPES,
+            drop_pending_updates=True,
+        )
+        return
+
     app.run_polling(
         allowed_updates=Update.ALL_TYPES,
-        drop_pending_updates=False,
+        drop_pending_updates=True,
         bootstrap_retries=-1,
     )
 

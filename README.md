@@ -50,20 +50,23 @@ SEARCH_MAX_RESULTS=5
 5. Railway подхватит `Procfile` и запустит worker:
 
 ```procfile
-worker: python bot.py
+web: python bot.py
 ```
 
-6. В сервисе Railway: **Settings → Scaling / Replicas = 1**. Long polling не работает с двумя инстансами.
+6. В сервисе Railway включите **Public Networking** (нужен URL для webhook).
+7. **Replicas = 1**. На Railway бот сам переходит в **webhook** (по `RAILWAY_PUBLIC_DOMAIN`), без `getUpdates` — так нет Conflict при деплое.
+
+Локально без публичного URL — обычный **polling** (`python bot.py`). Не запускайте локально и Railway одновременно с одним токеном.
 
 ### Ошибка `Conflict: terminated by other getUpdates request`
 
-Один токен бота может опрашивать Telegram **только один процесс**.
+Два процесса одновременно делали **polling** (`getUpdates`) с одним токеном.
 
-1. Останови локальный `python bot.py`, если он запущен на ПК.
-2. Railway → сервис бота → **Replicas = 1** (в репо зафиксировано `numReplicas: 1` в `railway.json`).
-3. Убедись, что нет **второго** деплоя/сервиса с тем же `TELEGRAM_TOKEN`.
-4. Сделай **Redeploy** и подожди 1–2 минуты, пока старый контейнер остановится.
-5. Если конфликт не пропадает: `railway scale 1` в CLI или временно удали лишний сервис в проекте.
+1. Останови **локальный** `python bot.py`.
+2. Railway → **Replicas = 1**, удали дублирующий сервис с тем же токеном.
+3. После redeploy в логах должно быть `Webhook mode url=https://...` (не polling).
+4. Включи **Public Networking** у сервиса, иначе webhook не дойдёт до бота.
+5. Не держи два деплоя (старый + новый) с одним токеном дольше пары минут.
 
 ## Файлы
 
