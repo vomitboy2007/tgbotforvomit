@@ -214,7 +214,20 @@ GROUP_INCOMING = (
     & ~filters.StatusUpdate.ALL
 )
 
+# === Safety / hardening constants (added during senior review) ===
+MAX_USER_TEXT_CHARS = 1800          # hard cap before we even touch the LLM (cost + injection control)
+MIN_REPLY_INTERVAL_SEC = 3.2        # simple per-chat cooldown to prevent spam / cost explosion
+LEARNING_WRITE_DEBOUNCE_SEC = 1.5   # batch learning writes a bit
+
 context_store: dict[int, deque[str]] = {}
+context_lock = asyncio.Lock()
+_last_reply_ts: dict[int, float] = {}
+_last_reply_lock = asyncio.Lock()
+
+# Learning writes are moved off the hot path via a queue + background writer task
+_learning_write_queue: asyncio.Queue[tuple[int, str, str, str]] | None = None
+_learning_writer_task: asyncio.Task[None] | None = None
+
 SYSTEM_PROMPT = build_system_prompt()
 _openai_client: AsyncOpenAI | None = None
 
@@ -387,9 +400,17 @@ def get_openai_client() -> AsyncOpenAI | None:
 
 
 def get_context(chat_id: int) -> deque[str]:
+    """Internal — prefer safe_snapshot_context() for cross-task safety."""
     if chat_id not in context_store:
         context_store[chat_id] = deque(maxlen=CONTEXT_WINDOW)
     return context_store[chat_id]
+
+
+async def safe_snapshot_context(chat_id: int) -> list[str]:
+    """Thread-safe snapshot for prompt building."""
+    async with context_lock:
+        ctx = get_context(chat_id)
+        return list(ctx)  # shallow copy of current messages
 
 
 def render_chat_line(name: str, text: str, *, attachment_note: str | None = None) -> str:
@@ -402,6 +423,40 @@ def render_chat_line(name: str, text: str, *, attachment_note: str | None = None
 
 def add_message(chat_id: int, name: str, text: str, *, attachment_note: str | None = None) -> None:
     get_context(chat_id).append(render_chat_line(name, text, attachment_note=attachment_note))
+
+
+# === Hardening helpers (senior review) ===
+
+def cap_user_text(text: str) -> str:
+    """Hard truncate to protect against prompt bloat and cost attacks."""
+    if not text:
+        return ""
+    cleaned = normalize_text(text)
+    if len(cleaned) <= MAX_USER_TEXT_CHARS:
+        return cleaned
+    return cleaned[:MAX_USER_TEXT_CHARS].rstrip() + "… [обрезано]"
+
+
+async def can_reply_now(chat_id: int) -> bool:
+    """Simple per-chat rate limit to stop spam and runaway costs."""
+    loop = asyncio.get_running_loop()
+    now = loop.time()
+    async with _last_reply_lock:
+        last = _last_reply_ts.get(chat_id, 0.0)
+        if now - last < MIN_REPLY_INTERVAL_SEC:
+            return False
+        _last_reply_ts[chat_id] = now
+        return True
+
+
+async def safe_get_context(chat_id: int) -> deque[str]:
+    async with context_lock:
+        return get_context(chat_id)  # still returns the live deque; mutations below are also locked
+
+
+async def safe_add_message(chat_id: int, name: str, text: str, *, attachment_note: str | None = None) -> None:
+    async with context_lock:
+        get_context(chat_id).append(render_chat_line(name, text, attachment_note=attachment_note))
 
 
 def display_name(update: Update) -> str:
@@ -468,8 +523,9 @@ def format_user_payload(
     *,
     attachment_note: str | None = None,
     learned_examples: list[LearningExample] | None = None,
+    history_snapshot: list[str] | None = None,
 ) -> str:
-    history = list(get_context(chat_id))
+    history = history_snapshot if history_snapshot is not None else list(get_context(chat_id))
     history_block = "\n".join(history) if history else "(пусто)"
     current_block = render_chat_line(current_name, current_text, attachment_note=attachment_note)
     learning_block = build_learning_block(learned_examples or [])
@@ -933,19 +989,32 @@ async def call_openai(
     if not client:
         raise RuntimeError("OPENAI_API_KEY is not set")
 
-    response = await asyncio.wait_for(
-        client.chat.completions.create(
-            model=OPENAI_MODEL,
-            temperature=0.75,
-            max_tokens=400,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_content},
-            ],
-        ),
-        timeout=OPENAI_TIMEOUT,
-    )
-    return (response.choices[0].message.content or "").strip()
+    last_exc: Exception | None = None
+    for attempt in range(3):  # cheap resilience for transient 5xx / rate limits
+        try:
+            response = await asyncio.wait_for(
+                client.chat.completions.create(
+                    model=OPENAI_MODEL,
+                    temperature=0.75,
+                    max_tokens=400,
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": user_content},
+                    ],
+                ),
+                timeout=OPENAI_TIMEOUT,
+            )
+            return (response.choices[0].message.content or "").strip()
+        except (TimeoutError, asyncio.TimeoutError) as exc:
+            last_exc = exc
+            logger.warning("OpenAI timeout on attempt %s/3", attempt + 1)
+        except Exception as exc:
+            last_exc = exc
+            if attempt < 2:
+                await asyncio.sleep(0.6 * (attempt + 1))  # light backoff
+            else:
+                logger.exception("OpenAI failed after 3 attempts")
+    raise last_exc or RuntimeError("OpenAI call failed")
 
 
 async def generate_reply(
@@ -958,12 +1027,14 @@ async def generate_reply(
     query = build_learning_query(current_text, attachment)
     kind = "image" if attachment else "text"
     learned_examples = LEARNING_MEMORY.related_examples(query, kind=kind, limit=LEARNING_LIMIT)
+    history_snapshot = await safe_snapshot_context(chat_id)
     user_payload = format_user_payload(
         chat_id,
         current_name,
         current_text,
         attachment_note=attachment.note if attachment else None,
         learned_examples=learned_examples,
+        history_snapshot=history_snapshot,
     )
 
     lore_entries = SITE_LORE.pick_context_entries(query, chat_id)
@@ -1142,8 +1213,8 @@ async def on_lore(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     text = message.text.strip() if message.text else "/lore"
     plain_reply, html_reply = build_lore_reply(chat.id)
 
-    add_message(chat.id, name, text)
-    add_message(chat.id, BOT_DISPLAY_NAME, plain_reply)
+    await safe_add_message(chat.id, name, text)
+    await safe_add_message(chat.id, BOT_DISPLAY_NAME, plain_reply)
     await message.reply_text(
         html_reply,
         parse_mode=ParseMode.HTML,
@@ -1184,7 +1255,7 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         if has_image_attachment(message) and reply_needed:
             attachment = await extract_image_attachment(message)
         if raw_text:
-            current_text = raw_text
+            current_text = cap_user_text(raw_text)   # HARD CAP for safety
         elif attachment or has_image_attachment(message):
             current_text = "[фото]"
         elif message.sticker:
@@ -1197,6 +1268,18 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             current_text = ""
 
         if not current_text and not attachment and not reply_needed:
+            return
+
+        # Rate limit expensive LLM calls (protects wallet and prevents self-DoS)
+        if reply_needed and not await can_reply_now(chat_id):
+            logger.info("Rate limited chat=%s (too many messages)", chat_id)
+            # We still record the user message for context, but skip LLM
+            await safe_add_message(
+                chat_id,
+                name,
+                current_text or "[пусто]",
+                attachment_note=attachment.note if attachment else None,
+            )
             return
 
         if chat.type in (ChatType.GROUP, ChatType.SUPERGROUP):
@@ -1264,7 +1347,7 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                     kind="image" if attachment else "text",
                 )
 
-        add_message(
+        await safe_add_message(
             chat_id,
             name,
             current_text or "[пусто]",
@@ -1281,11 +1364,17 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 await message.reply_text(apply_style_rules(FALLBACK_ERROR_REPLY))
             return
 
-        add_message(chat_id, BOT_DISPLAY_NAME, outcome.text)
+        await safe_add_message(chat_id, BOT_DISPLAY_NAME, outcome.text)
         await message.reply_text(outcome.text)
 
         if outcome.learnable:
-            LEARNING_MEMORY.record(chat_id, outcome.query, outcome.text, kind=outcome.kind)
+            # Offload disk write from event loop (was blocking every reply)
+            asyncio.create_task(
+                asyncio.to_thread(
+                    LEARNING_MEMORY.record, chat_id, outcome.query, outcome.text, kind=outcome.kind
+                ),
+                name=f"learn-{chat_id}",
+            )
     except Exception:
         logger.exception("handle_chat_message failed chat=%s", getattr(chat, "id", None))
         if chat.type in (ChatType.GROUP, ChatType.SUPERGROUP):
@@ -1294,9 +1383,19 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 def main() -> None:
     if not TELEGRAM_TOKEN:
-        raise SystemExit("TELEGRAM_TOKEN is required")
+        raise SystemExit("FATAL: TELEGRAM_TOKEN is required (set in .env or Railway Variables)")
 
+    if not OPENAI_API_KEY:
+        logger.warning("OPENAI_API_KEY is missing — bot will only reply with fallbacks. This is probably not what you want.")
+
+    # Loudly warn about the #1 source of "bot is dead" problems
     transport = "webhook" if USE_WEBHOOK and WEBHOOK_BASE_URL else "polling"
+    if transport == "polling" and is_railway_runtime():
+        logger.warning(
+            "Running in POLLING on Railway without public domain. "
+            "You will get Conflict errors on every deploy. "
+            "Go to Railway → Settings → Networking → Generate Domain, then set WEBHOOK_URL or redeploy."
+        )
     logger.info(
         "Starting bot transport=%s port=%s webhook_base=%s path=%s "
         "(context=%s, model=%s, openai=%s, token=%s, memory=%s, lore=%s)",

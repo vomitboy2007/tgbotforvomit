@@ -140,6 +140,13 @@ def load_channel_samples(
         if len(samples) >= max_samples:
             break
 
+    if not samples:
+        # This is important for persona fidelity — the bot will be more "generic" without examples
+        import logging
+        logging.getLogger("vomitbot").warning(
+            "No channel samples loaded for style examples (corpus empty). "
+            "Check messages.html or index/vn-game/yaroslav/messages. Bot will still work but tone will drift."
+        )
     return samples
 
 

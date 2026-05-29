@@ -31,9 +31,12 @@ RUNTIME_APPENDIX = """
 
 def load_base_prompt() -> str:
     if not PROMPT_FILE.is_file():
-        raise FileNotFoundError(f"Missing {PROMPT_FILE}")
+        raise FileNotFoundError(f"CRITICAL: {PROMPT_FILE} is missing — bot cannot start without persona rules")
 
     text = PROMPT_FILE.read_text(encoding="utf-8-sig").strip()
+    if len(text) < 200:
+        raise ValueError(f"CRITICAL: {PROMPT_FILE} looks truncated or empty ({len(text)} chars)")
+
     match = DEPLOY_BLOCK_RE.search(text)
     if match:
         text = text[: match.start()].strip()
