@@ -12,7 +12,6 @@ import logging
 import os
 import random
 import re
-import sys
 from collections import deque
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
@@ -118,13 +117,25 @@ HTTP_PORT = read_int_env("PORT", 8080, minimum=1)
 def resolve_webhook_base_url() -> str | None:
     explicit = os.environ.get("WEBHOOK_URL", "").strip().rstrip("/")
     if explicit:
-        return explicit
+        return explicit if explicit.startswith("https://") else f"https://{explicit}"
+
+    static_url = os.environ.get("RAILWAY_STATIC_URL", "").strip().rstrip("/")
+    if static_url:
+        return static_url if static_url.startswith("https://") else f"https://{static_url}"
 
     domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "").strip()
     if domain:
         return f"https://{domain}"
 
     return None
+
+
+def is_railway_runtime() -> bool:
+    return bool(
+        os.environ.get("RAILWAY_ENVIRONMENT")
+        or os.environ.get("RAILWAY_PROJECT_ID")
+        or os.environ.get("RAILWAY_SERVICE_ID")
+    )
 
 
 def use_webhook_mode() -> bool:
@@ -627,7 +638,22 @@ async def post_init(application: Application) -> None:
     info = await application.bot.get_webhook_info()
     if info.url:
         logger.warning("Cleared stale webhook url=%s before polling", info.url)
-    logger.info("Polling mode bot id=%s username=@%s", me.id, me.username)
+
+    if is_railway_runtime():
+        logger.warning(
+            "Railway без публичного URL (сервис Unexposed) — остаётся polling и возможен "
+            "Conflict при деплое. Settings → Networking → Generate Domain, затем redeploy. "
+            "Либо Variables: WEBHOOK_URL=https://ваш-домен.up.railway.app"
+        )
+        # Старый контейнер при redeploy ещё ~10–20 с держит getUpdates.
+        await asyncio.sleep(15)
+
+    logger.info(
+        "Polling mode bot id=%s username=@%s pid=%s",
+        me.id,
+        me.username,
+        os.getpid(),
+    )
 
 
 def is_get_updates_conflict(err: BaseException | None) -> bool:
@@ -1008,10 +1034,12 @@ async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     error = context.error
     if is_get_updates_conflict(error if isinstance(error, BaseException) else None):
         logger.error(
-            "Telegram getUpdates conflict: another poller uses this token. "
-            "Stop local bot.py, set Railway replicas=1, redeploy once. Exiting."
+            "getUpdates conflict (pid=%s): второй poller с тем же TELEGRAM_TOKEN — "
+            "старый контейнер Railway при redeploy, второй сервис, или локальный bot.py. "
+            "Включи public domain → webhook. Или смени токен в @BotFather. Жду и повторяю…",
+            os.getpid(),
         )
-        sys.exit(1)
+        return
 
     logger.exception("Unhandled bot error", exc_info=error)
     if isinstance(update, Update) and update.effective_message:

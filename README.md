@@ -60,13 +60,38 @@ web: python bot.py
 
 ### Ошибка `Conflict: terminated by other getUpdates request`
 
-Два процесса одновременно делали **polling** (`getUpdates`) с одним токеном.
+В логах `Polling mode` на Railway почти всегда значит: сервис **Unexposed** (нет домена) → webhook не включается → при каждом redeploy **старый и новый контейнер** на 10–30 с оба делают `getUpdates`.
 
-1. Останови **локальный** `python bot.py`.
-2. Railway → **Replicas = 1**, удали дублирующий сервис с тем же токеном.
-3. После redeploy в логах должно быть `Webhook mode url=https://...` (не polling).
-4. Включи **Public Networking** у сервиса, иначе webhook не дойдёт до бота.
-5. Не держи два деплоя (старый + новый) с одним токеном дольше пары минут.
+#### Как починить (рекомендуется)
+
+1. Railway → сервис `tgbotforvomit` → **Settings → Networking → Generate Domain** (перестанет быть Unexposed).
+2. **Redeploy**. В логах должно быть: `Webhook mode url=https://....up.railway.app/...`
+3. **Replicas = 1** (у тебя уже так на скрине).
+
+Либо в **Variables** вручную: `WEBHOOK_URL=https://твой-домен.up.railway.app` и redeploy.
+
+#### Как проверить, что токен не дублируется
+
+Скрипт **не** запускает бота, только смотрит статус в Telegram:
+
+```powershell
+$env:TELEGRAM_TOKEN="токен_из_railway_variables"
+python scripts/check_telegram_bot.py
+```
+
+- `url` пустой → кто-то в polling (Railway, локально или второй сервис).
+- `url` есть → webhook; polling с тем же токеном даст Conflict.
+
+#### Где искать «второй процесс», если локально не запускал
+
+| Место | Что проверить |
+| --- | --- |
+| Railway | В проекте **один** сервис с `TELEGRAM_TOKEN`, Replicas = 1, нет второго деплоя/форка |
+| Старый контейнер | Сразу после Redeploy 15–30 с — нормальный Conflict, должен пройти |
+| Другой хостинг | Старый VPS/Heroku/Render с тем же токеном |
+| Токен утёк | @BotFather → **Revoke** / новый токен → обновить Variable → redeploy (убивает всех pollers) |
+
+Локальный `python bot.py` и Railway с **одним** токеном одновременно — тоже Conflict.
 
 ## Файлы
 
