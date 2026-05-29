@@ -460,15 +460,12 @@ def get_bot_identity(context: ContextTypes.DEFAULT_TYPE) -> tuple[int | None, st
     return bot_id, bot_username
 
 
-def build_group_trigger_filter(bot_id: int, bot_username: str | None) -> filters.BaseFilter:
-    """Match group messages that reply to the bot or @mention it (Telegram privacy-safe)."""
-    mentions: list[int | str] = [bot_id]
-    if bot_username:
-        mentions.append(bot_username.lstrip("@"))
+def build_group_incoming_filter() -> filters.MessageFilter:
+    """All group content updates; mention/reply gating is done in should_reply.
 
-    return filters.ChatType.GROUPS & INCOMING_CONTENT & (
-        filters.REPLY | filters.Mention(mentions)
-    )
+    Do not use filters.Mention here — it ignores caption_entities (photo + @bot caption).
+    """
+    return filters.ChatType.GROUPS & INCOMING_CONTENT
 
 
 async def post_init(application: Application) -> None:
@@ -486,7 +483,7 @@ async def post_init(application: Application) -> None:
     )
     application.add_handler(
         MessageHandler(
-            build_group_trigger_filter(me.id, me.username),
+            build_group_incoming_filter(),
             handle_chat_message,
         ),
         group=0,
@@ -785,6 +782,24 @@ async def generate_reply(
     )
 
 
+async def on_ping(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    message = update.effective_message
+    if not message:
+        return
+    await message.reply_text(apply_style_rules("жив. групповой режим ок."))
+
+
+async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    logger.exception("Unhandled bot error", exc_info=context.error)
+    if isinstance(update, Update) and update.effective_message:
+        try:
+            await update.effective_message.reply_text(
+                apply_style_rules("что то сломалось внутри. глянь логи railway.")
+            )
+        except Exception:
+            logger.exception("Failed to send error reply")
+
+
 async def on_lore(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message = update.effective_message
     chat = update.effective_chat
@@ -816,63 +831,69 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     if user and user.is_bot:
         return
 
-    name = display_name(update)
-    chat_id = chat.id
-    bot_id, bot_username = get_bot_identity(context)
-    reply_needed = should_reply(message, bot_username, bot_id)
+    try:
+        name = display_name(update)
+        chat_id = chat.id
+        bot_id, bot_username = get_bot_identity(context)
+        reply_needed = should_reply(message, bot_username, bot_id)
 
-    raw_text = normalize_text(get_message_text(message))
-    attachment = await extract_image_attachment(message) if has_image_attachment(message) else None
-    current_text = raw_text or ("[фото]" if attachment else "")
+        raw_text = normalize_text(get_message_text(message))
+        attachment = None
+        if has_image_attachment(message) and reply_needed:
+            attachment = await extract_image_attachment(message)
+        current_text = raw_text or ("[фото]" if attachment or has_image_attachment(message) else "")
 
-    if not current_text and not attachment and not reply_needed:
-        return
+        if not current_text and not attachment and not reply_needed:
+            return
 
-    if chat.type in (ChatType.GROUP, ChatType.SUPERGROUP) and not reply_needed:
-        logger.info(
-            "Ignored group message chat=%s reply_to_bot=%s mention=%s text=%r",
-            chat_id,
-            is_reply_to_bot(message, bot_id, bot_username),
-            is_mention_to_bot(message, bot_id, bot_username),
-            (raw_text or "")[:80],
+        if chat.type in (ChatType.GROUP, ChatType.SUPERGROUP):
+            if not reply_needed:
+                logger.info(
+                    "Ignored group message chat=%s text=%r",
+                    chat_id,
+                    (raw_text or "")[:80],
+                )
+                return
+            logger.info(
+                "Group message chat=%s user=%s mention=%s reply=%s has_photo=%s text=%r",
+                chat_id,
+                name,
+                is_mention_to_bot(message, bot_id, bot_username),
+                is_reply_to_bot(message, bot_id, bot_username),
+                bool(message.photo),
+                (raw_text or "")[:80],
+            )
+
+        outcome = ReplyOutcome(
+            text=None,
+            learnable=False,
+            query=build_learning_query(current_text, attachment),
+            kind="image" if attachment else "text",
         )
-        return
-
-    if chat.type in (ChatType.GROUP, ChatType.SUPERGROUP) and reply_needed:
-        logger.info(
-            "Group trigger chat=%s mention=%s reply=%s user=%s",
-            chat_id,
-            is_mention_to_bot(message, bot_id, bot_username),
-            is_reply_to_bot(message, bot_id, bot_username),
-            name,
-        )
-
-    outcome = ReplyOutcome(
-        text=None,
-        learnable=False,
-        query=build_learning_query(current_text, attachment),
-        kind="image" if attachment else "text",
-    )
-    if reply_needed:
-        outcome = await generate_reply(chat_id, name, current_text, attachment=attachment)
-
-    add_message(
-        chat_id,
-        name,
-        current_text or "[пусто]",
-        attachment_note=attachment.note if attachment else None,
-    )
-
-    if not outcome.text:
         if reply_needed:
-            logger.info("Skipped reply in chat %s", chat_id)
-        return
+            outcome = await generate_reply(chat_id, name, current_text, attachment=attachment)
 
-    add_message(chat_id, BOT_DISPLAY_NAME, outcome.text)
-    await message.reply_text(outcome.text)
+        add_message(
+            chat_id,
+            name,
+            current_text or "[пусто]",
+            attachment_note=attachment.note if attachment else None,
+        )
 
-    if outcome.learnable:
-        LEARNING_MEMORY.record(chat_id, outcome.query, outcome.text, kind=outcome.kind)
+        if not outcome.text:
+            if reply_needed:
+                logger.info("Skipped reply in chat %s (model returned SKIP)", chat_id)
+            return
+
+        add_message(chat_id, BOT_DISPLAY_NAME, outcome.text)
+        await message.reply_text(outcome.text)
+
+        if outcome.learnable:
+            LEARNING_MEMORY.record(chat_id, outcome.query, outcome.text, kind=outcome.kind)
+    except Exception:
+        logger.exception("handle_chat_message failed chat=%s", getattr(chat, "id", None))
+        if chat.type in (ChatType.GROUP, ChatType.SUPERGROUP):
+            await message.reply_text(apply_style_rules(FALLBACK_ERROR_REPLY))
 
 
 def main() -> None:
@@ -896,6 +917,8 @@ def main() -> None:
         .build()
     )
     app.add_handler(CommandHandler("lore", on_lore))
+    app.add_handler(CommandHandler("ping", on_ping))
+    app.add_error_handler(on_error)
     app.run_polling(
         allowed_updates=Update.ALL_TYPES,
         drop_pending_updates=True,
