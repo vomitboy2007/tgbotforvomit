@@ -23,7 +23,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from telegram import Message, Update
-from telegram.constants import ChatType, MessageEntityType, ParseMode
+from telegram.constants import ChatAction, ChatType, MessageEntityType, ParseMode
 from telegram.error import Conflict
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
@@ -112,6 +112,8 @@ LEARNING_STORE_MAX = read_int_env("LEARNING_STORE_MAX", 500, minimum=50)
 IMAGE_MAX_BYTES = read_int_env("IMAGE_MAX_BYTES", 8 * 1024 * 1024, minimum=1024 * 1024)
 WEBHOOK_PATH = os.environ.get("WEBHOOK_PATH", "vomitbot-webhook").strip().strip("/") or "vomitbot-webhook"
 HTTP_PORT = read_int_env("PORT", 8080, minimum=1)
+OPENAI_TIMEOUT = read_int_env("OPENAI_TIMEOUT", 50, minimum=10)
+REPLY_TIMEOUT = read_int_env("REPLY_TIMEOUT", 55, minimum=15)
 
 
 def resolve_webhook_base_url() -> str | None:
@@ -751,26 +753,34 @@ def is_reply_to_bot(message: Message, bot_id: int | None, bot_username: str | No
         return False
 
     reply_user = reply.from_user
-    if not reply_user:
-        return False
+    if reply_user:
+        if bot_id is not None and reply_user.id == bot_id:
+            return True
 
-    if bot_id is not None and reply_user.id == bot_id:
-        return True
-
-    reply_username = _normalize_username(reply_user.username)
-    bot_name = _normalize_username(bot_username)
-    if reply_user.is_bot and bot_name and reply_username == bot_name:
-        return True
+        reply_username = _normalize_username(reply_user.username)
+        bot_name = _normalize_username(bot_username)
+        if reply_user.is_bot and bot_name and reply_username == bot_name:
+            return True
 
     return False
 
 
 def is_mention_to_bot(message: Message, bot_id: int | None, bot_username: str | None) -> bool:
     bot_name = _normalize_username(bot_username)
-    full_text = _message_full_text(message)
+    if not bot_name:
+        return False
 
-    if bot_name and full_text and f"@{bot_name}" in full_text.lower():
-        return True
+    texts = [
+        message.text,
+        message.caption,
+        _message_full_text(message),
+        get_message_text(message),
+    ]
+    for chunk in texts:
+        if chunk and f"@{bot_name}" in chunk.lower():
+            return True
+        if chunk and bot_name in chunk.lower() and "@" in chunk:
+            return True
 
     for entity in message.entities or ():
         if _entity_targets_bot(message, entity, bot_id, bot_name):
@@ -909,14 +919,17 @@ async def call_openai(
     if not client:
         raise RuntimeError("OPENAI_API_KEY is not set")
 
-    response = await client.chat.completions.create(
-        model=OPENAI_MODEL,
-        temperature=0.75,
-        max_tokens=400,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_content},
-        ],
+    response = await asyncio.wait_for(
+        client.chat.completions.create(
+            model=OPENAI_MODEL,
+            temperature=0.75,
+            max_tokens=400,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_content},
+            ],
+        ),
+        timeout=OPENAI_TIMEOUT,
     )
     return (response.choices[0].message.content or "").strip()
 
@@ -1111,6 +1124,16 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         bot_id, bot_username = await get_bot_identity(context)
         reply_needed = should_reply(message, bot_username, bot_id)
 
+        if chat.type in (ChatType.GROUP, ChatType.SUPERGROUP):
+            logger.info(
+                "Group update chat=%s mid=%s reply_needed=%s kind=%s text=%r",
+                chat.id,
+                message.message_id,
+                reply_needed,
+                _message_kind_summary(message),
+                normalize_text(get_message_text(message))[:100],
+            )
+
         raw_text = normalize_text(get_message_text(message))
         full_text = _message_full_text(message)
         attachment = None
@@ -1169,7 +1192,33 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             kind="image" if attachment else "text",
         )
         if reply_needed:
-            outcome = await generate_reply(chat_id, name, current_text, attachment=attachment)
+            try:
+                await context.bot.send_chat_action(
+                    chat_id=chat_id,
+                    action=ChatAction.TYPING,
+                )
+            except Exception:
+                logger.debug("send_chat_action failed", exc_info=True)
+
+            logger.info(
+                "Generating reply chat=%s user=%s text=%r",
+                chat_id,
+                name,
+                (current_text or "")[:80],
+            )
+            try:
+                outcome = await asyncio.wait_for(
+                    generate_reply(chat_id, name, current_text, attachment=attachment),
+                    timeout=REPLY_TIMEOUT,
+                )
+            except TimeoutError:
+                logger.error("generate_reply timed out chat=%s", chat_id)
+                outcome = ReplyOutcome(
+                    text=apply_style_rules("слишком долго думал. повтори короче."),
+                    learnable=False,
+                    query=build_learning_query(current_text, attachment),
+                    kind="image" if attachment else "text",
+                )
 
         add_message(
             chat_id,
@@ -1230,8 +1279,8 @@ def main() -> None:
         .build()
     )
     register_message_handlers(app)
-    app.add_handler(CommandHandler("lore", on_lore))
-    app.add_handler(CommandHandler("ping", on_ping))
+    app.add_handler(CommandHandler("lore", on_lore), group=-1)
+    app.add_handler(CommandHandler("ping", on_ping), group=-1)
     app.add_error_handler(on_error)
 
     if USE_WEBHOOK and WEBHOOK_BASE_URL:
