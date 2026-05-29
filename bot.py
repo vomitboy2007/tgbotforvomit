@@ -21,7 +21,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
-from telegram import Update
+from telegram import Message, Update
 from telegram.constants import ChatType, MessageEntityType, ParseMode
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
@@ -128,6 +128,12 @@ FAMILIARITY_RE = re.compile(r"\b(братанчик|братан|брат|бро
 TOKEN_RE = re.compile(r"[0-9A-Za-zА-Яа-яЁё_]+", re.UNICODE)
 BOT_DATA_ID_KEY = "bot_id"
 BOT_DATA_USERNAME_KEY = "bot_username"
+INCOMING_CONTENT = (
+    filters.TEXT
+    | filters.CAPTION
+    | filters.PHOTO
+    | filters.Document.IMAGE
+) & ~filters.COMMAND
 
 context_store: dict[int, deque[str]] = {}
 SYSTEM_PROMPT = build_system_prompt()
@@ -454,11 +460,37 @@ def get_bot_identity(context: ContextTypes.DEFAULT_TYPE) -> tuple[int | None, st
     return bot_id, bot_username
 
 
+def build_group_trigger_filter(bot_id: int, bot_username: str | None) -> filters.BaseFilter:
+    """Match group messages that reply to the bot or @mention it (Telegram privacy-safe)."""
+    mentions: list[int | str] = [bot_id]
+    if bot_username:
+        mentions.append(bot_username.lstrip("@"))
+
+    return filters.ChatType.GROUPS & INCOMING_CONTENT & (
+        filters.REPLY | filters.Mention(mentions)
+    )
+
+
 async def post_init(application: Application) -> None:
     me = await application.bot.get_me()
     application.bot_data[BOT_DATA_ID_KEY] = me.id
-    application.bot_data[BOT_DATA_USERNAME_KEY] = (me.username or "").lower()
+    application.bot_data[BOT_DATA_USERNAME_KEY] = _normalize_username(me.username)
     logger.info("Bot ready: id=%s username=@%s", me.id, me.username)
+
+    application.add_handler(
+        MessageHandler(
+            filters.ChatType.PRIVATE & INCOMING_CONTENT,
+            handle_chat_message,
+        ),
+        group=0,
+    )
+    application.add_handler(
+        MessageHandler(
+            build_group_trigger_filter(me.id, me.username),
+            handle_chat_message,
+        ),
+        group=0,
+    )
 
 
 def build_lore_reply(chat_id: int) -> tuple[str, str]:
@@ -473,57 +505,69 @@ def build_lore_reply(chat_id: int) -> tuple[str, str]:
     return apply_style_rules(plain_reply), html_reply
 
 
-def is_reply_to_bot(message: object, bot_id: int | None, bot_username: str | None) -> bool:
-    reply = getattr(message, "reply_to_message", None)
+def _normalize_username(username: str | None) -> str | None:
+    if not username:
+        return None
+    return username.lstrip("@").lower()
+
+
+def _message_entities(message: Message) -> tuple[object, ...]:
+    return tuple(message.entities or ()) + tuple(message.caption_entities or ())
+
+
+def is_reply_to_bot(message: Message, bot_id: int | None, bot_username: str | None) -> bool:
+    reply = message.reply_to_message
     if not reply:
         return False
 
-    reply_user = getattr(reply, "from_user", None)
+    reply_user = reply.from_user
     if not reply_user:
         return False
 
-    if bot_id is not None and getattr(reply_user, "id", None) == bot_id:
+    if bot_id is not None and reply_user.id == bot_id:
         return True
 
-    if getattr(reply_user, "is_bot", False):
-        reply_username = getattr(reply_user, "username", None)
-        if bot_username and reply_username and reply_username.lower() == bot_username:
-            return True
-        if bot_id is not None and getattr(reply_user, "id", None) == bot_id:
-            return True
+    reply_username = _normalize_username(reply_user.username)
+    bot_name = _normalize_username(bot_username)
+    if reply_user.is_bot and bot_name and reply_username == bot_name:
+        return True
 
     return False
 
 
-def is_mention_to_bot(message: object, bot_id: int | None, bot_username: str | None) -> bool:
+def is_mention_to_bot(message: Message, bot_id: int | None, bot_username: str | None) -> bool:
     body = get_message_text(message)
-    if not body:
-        return False
+    bot_name = _normalize_username(bot_username)
 
-    if bot_username:
-        bot_handle = f"@{bot_username.lower()}"
-        if bot_handle in body.lower():
+    if body and bot_name:
+        lowered = body.lower()
+        if f"@{bot_name}" in lowered:
             return True
 
-    for entity in get_message_entities(message):
+    for entity in _message_entities(message):
         entity_name = entity_type_name(entity)
-        if entity_name == MessageEntityType.MENTION.value:
-            offset = getattr(entity, "offset", 0)
-            length = getattr(entity, "length", 0)
-            mention = body[offset : offset + length].lower()
-            if bot_username and mention == f"@{bot_username.lower()}":
-                return True
-            continue
 
         if entity_name == MessageEntityType.TEXT_MENTION.value and bot_id is not None:
             mentioned_user = getattr(entity, "user", None)
-            if mentioned_user and getattr(mentioned_user, "id", None) == bot_id:
+            if mentioned_user and mentioned_user.id == bot_id:
                 return True
+            continue
+
+        if entity_name != MessageEntityType.MENTION.value or not bot_name:
+            continue
+
+        try:
+            fragment = _normalize_username(message.parse_entity(entity))
+        except (RuntimeError, ValueError, IndexError, AttributeError):
+            fragment = None
+
+        if fragment == bot_name:
+            return True
 
     return False
 
 
-def should_reply(message: object, bot_username: str | None, bot_id: int | None) -> bool:
+def should_reply(message: Message, bot_username: str | None, bot_id: int | None) -> bool:
     chat = getattr(message, "chat", None)
     if not message or not chat:
         return False
@@ -773,25 +817,34 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     name = display_name(update)
-    raw_text = normalize_text(get_message_text(message))
-    attachment = await extract_image_attachment(message) if has_image_attachment(message) else None
-    current_text = raw_text or ("[фото]" if attachment else "")
-
-    if not current_text and not attachment:
-        return
-
     chat_id = chat.id
     bot_id, bot_username = get_bot_identity(context)
     reply_needed = should_reply(message, bot_username, bot_id)
 
+    raw_text = normalize_text(get_message_text(message))
+    attachment = await extract_image_attachment(message) if has_image_attachment(message) else None
+    current_text = raw_text or ("[фото]" if attachment else "")
+
+    if not current_text and not attachment and not reply_needed:
+        return
+
     if chat.type in (ChatType.GROUP, ChatType.SUPERGROUP) and not reply_needed:
-        logger.debug(
-            "Ignored group message chat=%s bot_id=%s bot_username=%s reply_to_bot=%s mention=%s",
+        logger.info(
+            "Ignored group message chat=%s reply_to_bot=%s mention=%s text=%r",
             chat_id,
-            bot_id,
-            bot_username,
             is_reply_to_bot(message, bot_id, bot_username),
             is_mention_to_bot(message, bot_id, bot_username),
+            (raw_text or "")[:80],
+        )
+        return
+
+    if chat.type in (ChatType.GROUP, ChatType.SUPERGROUP) and reply_needed:
+        logger.info(
+            "Group trigger chat=%s mention=%s reply=%s user=%s",
+            chat_id,
+            is_mention_to_bot(message, bot_id, bot_username),
+            is_reply_to_bot(message, bot_id, bot_username),
+            name,
         )
 
     outcome = ReplyOutcome(
@@ -843,13 +896,6 @@ def main() -> None:
         .build()
     )
     app.add_handler(CommandHandler("lore", on_lore))
-    incoming = (
-        filters.TEXT
-        | filters.CAPTION
-        | filters.PHOTO
-        | filters.Document.IMAGE
-    ) & ~filters.COMMAND
-    app.add_handler(MessageHandler(incoming, handle_chat_message))
     app.run_polling(
         allowed_updates=Update.ALL_TYPES,
         drop_pending_updates=True,
