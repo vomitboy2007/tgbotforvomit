@@ -697,6 +697,29 @@ def _message_full_text(message: Message) -> str:
     return "\n".join(parts)
 
 
+def _message_kind_summary(message: Message) -> str:
+    kinds: list[str] = []
+    if message.text:
+        kinds.append("text")
+    if message.caption:
+        kinds.append("caption")
+    if message.photo:
+        kinds.append("photo")
+    if message.sticker:
+        kinds.append("sticker")
+    if message.voice or message.video_note:
+        kinds.append("voice")
+    if message.video or message.animation:
+        kinds.append("video")
+    if message.document:
+        kinds.append("document")
+    if message.new_chat_members:
+        kinds.append("new_members")
+    if message.left_chat_member:
+        kinds.append("left_member")
+    return ",".join(kinds) if kinds else "empty"
+
+
 def _entity_belongs_to_caption(message: Message, entity: object) -> bool:
     if not message.caption:
         return False
@@ -1120,11 +1143,15 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                     )
                 else:
                     logger.info(
-                        "Ignored group message chat=%s text=%r",
+                        "Ignored group message chat=%s kind=%s text=%r full=%r "
+                        "(нужен @%s или реплай на бота)",
                         chat_id,
+                        _message_kind_summary(message),
                         (raw_text or "")[:80],
+                        full_text[:120],
+                        bot_username or "?",
                     )
-                return
+                    return
             logger.info(
                 "Group message chat=%s user=%s mention=%s reply=%s has_photo=%s text=%r",
                 chat_id,
