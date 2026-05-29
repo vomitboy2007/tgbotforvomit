@@ -102,7 +102,7 @@ def encode_data_url(data: bytes, mime_type: str) -> str:
 ROOT = Path(__file__).resolve().parent
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "").strip()
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "").strip()
-OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini").strip()
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o").strip()
 CONTEXT_WINDOW = read_int_env("CONTEXT_WINDOW", 15, minimum=1)
 LEARNING_STORE_PATH = Path(
     os.environ.get("LEARNING_STORE_PATH", str(ROOT / "runtime" / "learned_turns.jsonl"))

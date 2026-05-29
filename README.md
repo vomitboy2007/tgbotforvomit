@@ -20,11 +20,13 @@ python bot.py
 TELEGRAM_TOKEN=your_telegram_bot_token
 OPENAI_API_KEY=your_openai_api_key
 CONTEXT_WINDOW=15
-OPENAI_MODEL=gpt-4o-mini
+OPENAI_MODEL=gpt-4o
 SEARCH_MAX_RESULTS=5
 ```
 
 Поиск фактов: **DuckDuckGo** (работает без ключей). `GOOGLE_API_KEY` + `GOOGLE_CSE_ID` — только опциональный fallback, если DDG пустой.
+
+**Рекомендуемая модель:** `gpt-4o` (по умолчанию). Она значительно лучше соблюдает стиль Ярослава Вомитова, логику поиска [SEARCH] и обработку изображений, чем `gpt-4o-mini`. Если хочешь сэкономить — поставь `gpt-4o-mini`, но качество ответов заметно упадёт.
 
 ## Поведение
 
