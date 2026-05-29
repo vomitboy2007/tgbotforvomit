@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <script>
+    if (sessionStorage.getItem("vomitboy-gate-passed") !== "1") {
+      window.location.replace("gate.html");
+    }
+  </script>
+  <title>VOMITBOY.COM // sick &amp; beautiful</title>
+  <meta name="description"
+    content="VOMITBOY.COM is an old-web inspired archive about underground culture, visuals, music, netstalking, and community.">
+  <meta name="theme-color" content="#0a0a08">
+  <link rel="stylesheet" href="style.css?v=20260524-fieldlog">
+  <!-- Preload the LCP hero background image -->
+  <link rel="preload" as="image" href="banners/header1.png" fetchpriority="high">
+  <!-- Font Awesome loaded asynchronously to avoid blocking LCP -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
+</head>
+
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+
+  <div class="wrapper" id="main">
+
+    <!-- ── HEADER ── -->
+    <header aria-label="Site header">
+      <!-- фоновая картинка шапки -->
+      <img src="banners/header1.png" class="header-bg-img" alt="" aria-hidden="true" fetchpriority="high" decoding="async" loading="eager">
+      <div class="site-marquee">BEWARE OF THE VOMIT//</div>
+
+      <h1 class="site-title">VOMITBOY.COM</h1>
+    </header>
+
+    <!-- ── BANNER STRIP (88x31) ── -->
+    <div class="banner-strip-wrap">
+      <div class="banner-strip">
+        <a href="http://www.hat.net/abs/noclick/" class="banner-link"><img src="banners/noclick.gif" alt="banner" class="banner88" loading="lazy" decoding="async" fetchpriority="low"><span class="banner-placeholder">VOMITBOY</span></a>
+        <a href="#" class="banner-link"><img src="images/miku1.jpg" alt="banner" class="banner88" loading="lazy" decoding="async" fetchpriority="low"><span class="banner-placeholder">NEOCITIES</span></a>
+        <a href="#" class="banner-link"><img src="images/ball.png" alt="banner" class="banner88" loading="lazy" decoding="async" fetchpriority="low"><span class="banner-placeholder">PUNK IS NOT DEAD</span></a>
+        <a href="#" class="banner-link"><img src="images/glaz.gif" alt="banner" class="banner88" loading="lazy" decoding="async" fetchpriority="low"><span class="banner-placeholder">DIY ZINE</span></a>
+        <a href="#" class="banner-link"><img src="images/sunflower.gif" alt="banner" class="banner88" loading="lazy" decoding="async" fetchpriority="low"><span class="banner-placeholder">SICK&amp;BEAUTIFUL</span></a>
+        <a href="#" class="banner-link"><img src="images/io.png" alt="banner" class="banner88" loading="lazy" decoding="async" fetchpriority="low"><span class="banner-placeholder">UNDERGROUND</span></a>
+        <a href="#" class="banner-link"><img src="images/the-wheel-tire.gif" alt="banner" class="banner88" loading="lazy" decoding="async" fetchpriority="low"><span class="banner-placeholder">NO WAVE</span></a>
+        <a href="#" class="banner-link"><img src="gifs/miku.gif" alt="banner" class="banner88" loading="lazy" decoding="async" fetchpriority="low"><span class="banner-placeholder">NOISE</span></a>
+        <a href="#" class="banner-link"><img src="gifs/wukomet.gif" alt="banner" class="banner88" loading="lazy" decoding="async" fetchpriority="low"><span class="banner-placeholder">嘔吐少年</span></a>
+        <a href="#" class="banner-link"><img src="gifs/penis.gif" alt="banner" class="banner88" loading="lazy" decoding="async" fetchpriority="low"><span class="banner-placeholder">EST.2010s</span></a>
+        <!-- дублируем для бесшовной прокрутки -->
+        <a href="#" class="banner-link"><img src="gifs/photo-shoot.gif" alt="banner" class="banner88" loading="lazy" decoding="async" fetchpriority="low"><span class="banner-placeholder">VOMITBOY</span></a>
+        <a href="#" class="banner-link"><img src="gifs/usa.gif" alt="banner" class="banner88" loading="lazy" decoding="async" fetchpriority="low"><span class="banner-placeholder">NEOCITIES</span></a>
+        <a href="#" class="banner-link"><img src="gifs/linux-computer.gif" alt="banner" class="banner88" loading="lazy" decoding="async" fetchpriority="low"><span class="banner-placeholder">PUNK IS NOT DEAD</span></a>
+        <a href="#" class="banner-link"><img src="gifs/red-redbull.gif" alt="banner" class="banner88" loading="lazy" decoding="async" fetchpriority="low"><span class="banner-placeholder">DIY ZINE</span></a>
+        <a href="#" class="banner-link"><img src="images/mugart.jpg" alt="banner" class="banner88" loading="lazy" decoding="async" fetchpriority="low"><span class="banner-placeholder">SICK&amp;BEAUTIFUL</span></a>
+        <a href="#" class="banner-link"><img src="images/noname.png" alt="banner" class="banner88" loading="lazy" decoding="async" fetchpriority="low"><span class="banner-placeholder">UNDERGROUND</span></a>
+        <a href="#" class="banner-link"><img src="gifs/larry-croft-yoshida.gif" alt="banner" class="banner88" loading="lazy" decoding="async" fetchpriority="low"><span class="banner-placeholder">NO WAVE</span></a>
+        <a href="#" class="banner-link"><img src="images/hl.jpg" alt="banner" class="banner88" loading="lazy" decoding="async" fetchpriority="low"><span class="banner-placeholder">NOISE</span></a>
+        <a href="#" class="banner-link"><img src="images/hohlik.jpg" alt="banner" class="banner88" loading="lazy" decoding="async" fetchpriority="low"><span class="banner-placeholder">嘔吐少年</span></a>
+        <a href="#" class="banner-link"><img src="images/vomitgang.jpg" alt="banner" class="banner88" loading="lazy" decoding="async" fetchpriority="low"><span class="banner-placeholder">EST.2010s</span></a>
+      </div>
+    </div>
+
+    <div class="wiki-warning" role="note" aria-label="Sensitive content warning">
+      <div class="wiki-warning-title">Sensitive Content Notice ⚠️</div>
+      <p>The following article contains and discusses content that may be distressing to some readers.</p>
+      <p><strong>Reason for Warning:</strong> This page documents an aesthetic centered on rotten food. The content
+        explicitly features or romanticizes animal corpses, garbage, weird street pics and netstalking. Viewer
+        discretion is strongly advised.</p>
+    </div>
+
+    <!-- ── PAGE LAYOUT ── -->
+    <div class="page-layout">
+      <main class="main-content" id="content">
+
+        <!-- ── STATUS ── -->
+        <div class="status-bar" role="status" aria-live="polite">
+          <span><span class="status-dot"></span> STATUS: ON</span>
+          <span class="blink" aria-hidden="true">■</span>
+          <span class="status-counter">visitors: <span class="counter">......</span></span>
+          <button class="status-action-btn" id="motion-toggle" type="button" aria-pressed="false">[ MOTION: ON ]</button>
+        </div>
+
+        <!-- ── NAV ── -->
+        <nav aria-label="Primary">
+          <a href="#main">[ MAIN ]</a>
+          <a href="#about">[ ABOUT ]</a>
+          <a href="#manifesto">[ ЛЕТОПИСЬ ]</a>
+          <a href="#field-log">[ FIELD LOG ]</a>
+          <a href="gallery.html" class="blink">[ GALLERY ]</a>
+          <a href="articles.html">[ ARTICLES ]</a>
+          <a href="map.html">[ MAP ]</a>
+          <a href="vn-game.html" class="blink">[ VN GAME ]</a>
+          <a href="#music">[ MUSIC ]</a>
+          <a href="#links">[ LINKS ]</a>
+        </nav>
+
+        <!-- ── MUSIC PLAYER ── -->
+        <div class="player-row">
+          <div class="player" role="group" aria-label="Audio player">
+            <div class="player-nowplaying">GOIDA FM//</div>
+            <div class="player-title" id="player-title" aria-live="polite">SWANS — Failure</div>
+            <div class="player-timeline">
+              <span class="player-time" id="player-current">0:00</span>
+              <div class="player-bar" id="player-bar" data-player-bar="seek" role="button" tabindex="0" aria-label="Seek track">
+                <div class="player-progress" id="player-progress"></div>
+                <div class="player-thumb" id="player-thumb"></div>
+              </div>
+              <span class="player-time" id="player-duration">0:00</span>
+            </div>
+            <div class="player-controls">
+              <button class="player-btn" type="button" data-player-action="prev" aria-label="Previous track">‹</button>
+              <button class="player-btn player-btn-play" id="player-play" type="button" data-player-action="toggle"
+                aria-label="Play" aria-pressed="false">▶</button>
+              <button class="player-btn" type="button" data-player-action="next" aria-label="Next track">›</button>
+            </div>
+            <div class="player-volume-row">
+              <span class="player-vol-icon" aria-hidden="true">&#128266;</span>
+              <div class="player-bar player-vol-bar" data-player-bar="volume" role="button" tabindex="0" aria-label="Adjust volume">
+                <div class="player-progress" id="player-vol-progress" style="width:80%"></div>
+                <div class="player-thumb" id="player-vol-thumb" style="left:80%"></div>
+              </div>
+            </div>
+          </div>
+          <span class="visually-hidden" id="player-sr-status" aria-live="polite"></span>
+          <audio id="player-audio" preload="none"></audio>
+
+          <!-- ── GUESTBOOK ── -->
+          <div class="guestbook-panel">
+            <div class="guestbook-title">[ vomitboy.chat// ]</div>
+            <iframe src="https://www5.cbox.ws/box/?boxid=961477&boxtag=beABwC" width="100%" height="380"
+              title="Guestbook chat" loading="lazy" allowtransparency="yes" allow="autoplay" frameborder="0" marginheight="0" marginwidth="0"
+              scrolling="auto"></iframe>
+          </div>
+
+        </div><!-- /player in row -->
+
+        <!-- ── PLAYER + ICONS ROW ── -->
+        <div class="player-row">
+
+          <!-- PLAYER moves inside here - wrap existing player -->
+          <!-- ── ICONIC FIGURES ── -->
+          <div class="iconic-panel">
+            <div class="iconic-title"><img src="images/100px-Aegis_hi_res.png" class="iconic-star">
+              <span>/MMORTALS</span>
+            </div>
+            <ul class="iconic-list iconic-list-2col">
+              <li><span class="iconic-num">01</span><img src="images/vmtcore1.jpg" class="iconic-avatar"><span
+                  class="iconic-name">v0mitc0re</span><span class="iconic-tag">warden</span></li>
+              <li><span class="iconic-num">02</span><img src="images/ball1.jpg" class="iconic-avatar"><span
+                  class="iconic-name">Matvey_Kazalov</span><span class="iconic-tag">psycho</span></li>
+              <li><span class="iconic-num">03</span><img src="images/vex.png" class="iconic-avatar"><span
+                  class="iconic-name">Vex</span><span class="iconic-tag">big boy</span></li>
+              <li><span class="iconic-num">04</span><img src="images/burpboy.jpg" class="iconic-avatar"><span
+                  class="iconic-name">Tomskiy_Scarner</span><span class="iconic-tag">murderer</span></li>
+              <li><span class="iconic-num">05</span><img src="images/shmango.jpg" class="iconic-avatar"><span
+                  class="iconic-name">shmango_paris</span><span class="iconic-tag">vomit_artist</span></li>
+              <li><span class="iconic-num">06</span><img src="images/chips.jpg" class="iconic-avatar"><span
+                  class="iconic-name">Chips</span><span class="iconic-tag">sinner</span></li>
+              <li><span class="iconic-num">07</span><img src="images/kirill.jpg" class="iconic-avatar"><span
+                  class="iconic-name">CJlABHblГљ_MAJlblГљ</span><span class="iconic-tag">buddy</span></li>
+              <li><span class="iconic-num">08</span><img src="images/rita228.jpg" class="iconic-avatar"><span
+                  class="iconic-name">рита//ZZ8/</span><span class="iconic-tag">9yrsold</span></li>
+              <li><span class="iconic-num">09</span><img src="images/ursa.jpg" class="iconic-avatar"><span
+                  class="iconic-name">kapitoshka52</span><span class="iconic-tag">Ursa</span></li>
+              <li><span class="iconic-num">10</span><img src="images/disa.jpg" class="iconic-avatar"><span
+                  class="iconic-name">disa</span><span class="iconic-tag">gigachad</span></li>
+              <li><span class="iconic-num">11</span><img src="images/fagot.jpg" class="iconic-avatar"><span
+                  class="iconic-name">fag0t//ZZ8</span><span class="iconic-tag">tomoko-like-gf</span></li>
+              <li><span class="iconic-num">12</span><img src="images/mambeeva.jpg" class="iconic-avatar"><span
+                  class="iconic-name">Katya_Mambeeva</span><span class="iconic-tag">the mother</span></li>
+              <li><span class="iconic-num">13</span><img src="images/edgar.jpg" class="iconic-avatar"><span
+                  class="iconic-name">edgar</span><span class="iconic-tag">edgy_femboy</span></li>
+              <li><span class="iconic-num">14</span><img src="images/vydra.jpg" class="iconic-avatar"><span
+                  class="iconic-name">𝘩𝘢𝘢𝘨𝘦𝘯𝘵𝘪//.𝘯𝘦𝘴</span><span class="iconic-tag">hacker</span></li>
+            </ul>
+
+            <!-- ── БЛОК С КАРТИНКОЙ  ── -->
+            <div class="iconic-img-block">
+              <img src="gifs/thankyou.gif" alt="Thank you animation" class="iconic-img-main" loading="lazy" decoding="async">
+              <div class="iconic-img-caption">♡</div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- ── NETSTALKING BANNER BLOCK ── -->
+        <div class="netstalking-block">
+          <div class="netstalking-text">⚠️if you find anything interesting, leave the coordinates here⚠️</div>
+          <div class="netstalking-arrows" aria-hidden="true"><span>↓</span><span>↓</span><span>↓</span></div>
+          <a href="https://t.me/vomitboy_bot" target="_blank" rel="noopener noreferrer" class="netstalking-link" aria-label="Отправить координаты в Telegram-бот @vomitboy_bot">
+            <img src="images/rat3.jpg" alt="Netstalking mascot rat" class="netstalking-img" loading="lazy" decoding="async" fetchpriority="low">
+          </a>
+        </div>
+
+        <!-- ── TICKER ── -->
+        <div class="running-text">
+          <span>In the case of an investigation by any federal agency or the like, I have nothing to do with this group
+            or the people in it, I don't know how I got here, possibly added by a third party, I don't support any
+            actions of the members of this group &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+        </div>
+
+        <!-- ── MAIN GRID ── -->
+        <div class="grid">
+
+          <!-- INTRO -->
+          <div class="panel intro-panel grid-wide" id="about">
+            <div class="panel-title"><img src="images/whatis.webp" alt="Что такое Vomitboy" class="iconic-avatar-whatis" loading="lazy" decoding="async"></div>
+            <div class="intro-text">
+              <p><em>➤ Vomitboy</em> — это российская андеграундная субкультура, сформировавшаяся в начале 2020-х годов. Сообщество объединяет людей, чувствующих себя отчужденными от мейнстримного общества, и базируется на специфическом юморе, локальных мемах и узнаваемых личностях.</p>
+              <p><strong>История возникновения</strong><br>
+              Основателем и идеологом движения считается Ярослав Вомитов — типичный представитель «нижнего интернета» начала десятилетия. В 2021 году он запустил ресурс vomitboy.com, который стал центральным узлом для формирования эстетики и консолидации сторонников. Пик популярности субкультуры пришелся на 2021–2023 годы; в настоящее время активность сохраняется в тематических Telegram-каналах и сообществах VK.</p>
+              <div class="biorobot-row">
+                <div class="biorobot-text">
+                  <p>💀 «don't ask questions. don't explain. remember that you are a biorobot.»</p>
+                  <span class="jp">私は瞬きした。どうしました？ / я моргнул, чё было</span>
+                </div>
+                <img src="gifs/boisvert.gif" alt="Biorobot animation" class="biorobot-gif">
+              </div>
+            </div>
+          </div>
+          <!-- DIET 13 + TAGS -->
+          <section class="panel grid-wide lore-panel lore-panel-diet" aria-labelledby="diet13-title">
+            <div class="lore-panel-overlay"></div>
+            <div class="lore-panel-content">
+              <h3 class="lore-panel-title" id="diet13-title">1. DIET 13</h3>
+              <p>
+                Один из мемов паблика под названием «диетпитание» стал ядром кулинарии всего сообщества. Сейчас под этим
+                термином подразумевается любая еда, вызывающая отвращение. Обычно это полуфабрикаты компании «Горячая
+                Штучка», конфеты «Левушка детям», энергетический напиток Крым Energy, свиные уши и высококалорийная еда с
+                обильным добавлением майонеза и различные вариации напитков с большим количеством налета и оставленных
+                ложек внутри.
+              </p>
+            </div>
+          </section>
+
+          <section class="panel grid-wide lore-panel lore-panel-tags" aria-labelledby="tags-title">
+            <div class="lore-panel-overlay"></div>
+            <div class="lore-panel-content">
+              <h3 class="lore-panel-title" id="tags-title">2. TAGS</h3>
+              <p>
+                Vomitboy - человек высокой культуры. Отвержение обществом из-за специфического образа жизни и мышления
+                располагает к высоким мыслям.
+              </p>
+              <p>
+                Основой культуры Вомитбоев является нетсталкинг, создание карт с находками, аниме и видеоигры. За долгие
+                годы существования маскотами стали Burpboy (подсолнух Рыгоша), Creepy Hatsune Miku doll и кружка с Микки
+                Маусом (RIP). Актуальным маскотом является VOMIT GF - девушка с зелено-черными волосами и зрачками в
+                виде двойного слэша.
+              </p>
+            </div>
+          </section>
+
+          <!-- MANIFESTO -->
+          <div class="panel grid-wide" id="manifesto">
+            <div class="panel-title"><img src="images/trubozyaka.jpg" class="iconic-star"> ЛЕТОПИСЬ<span></span>
+            </div>
+            <div class="manifesto-wrap">
+              <div class="manifesto">
+                <p> <strong>2021</strong> первые посты <br>
+                  <strong>14.11.2022</strong> падение дискорд сервера <br>
+                  <strong>18.01.2023 </strong> переезд в СПБ <br>
+                  <strong>15.07.2023</strong> вомит сходка <br>
+                  <strong>24.09.2023</strong> снос чата и канала в тг <br>
+                  <strong>06.02.2026-now</strong> still breathing
+                </p>
+              </div>
+              <div class="manifesto-img-wrap">
+                <img src="images/cycle.png" class="manifesto-cycle-img" alt="Cycle">
+              </div>
+            </div>
+          </div>
+
+          <!-- FIELD LOG — нетсталкерский журнал находок -->
+          <section class="panel grid-wide field-log-panel" id="field-log" aria-labelledby="field-log-title">
+            <div class="panel-title" id="field-log-title">
+              <img src="images/rat3.jpg" class="iconic-star" alt="" width="24" height="24">
+              <span>FIELD LOG // NETSTALK</span>
+            </div>
+            <p class="field-log-lead">
+              полевой журнал: короткие заметки с датой, координатами и фото. как чат нетсталкеров — «нашли помойку на Рябиновой, фото прилагаются».
+            </p>
+            <div class="wiki-warning field-log-warning" role="note" aria-label="Sensitive content warning">
+              <div class="wiki-warning-title">Sensitive Content Notice ⚠️</div>
+            </div>
+            <div class="field-log-box" id="field-log-entries" aria-live="polite">
+              <p class="field-log-loading">[ загрузка журнала... ]</p>
+            </div>
+            <details class="field-log-ops" id="field-log-ops" hidden>
+              <summary class="field-log-ops-summary">+ черновик новой записи</summary>
+              <form class="field-log-draft" id="field-log-draft-form">
+                <label>
+                  дата
+                  <input type="date" name="date" required>
+                </label>
+                <label>
+                  заметка
+                  <textarea name="text" rows="3" placeholder="нашли помойку на Рябиновой..." required></textarea>
+                </label>
+                <label>
+                  место / координаты <span class="field-log-optional">(необяз.)</span>
+                  <input type="text" name="coords" placeholder="ул. Рябиновая или 55.75, 37.62">
+                </label>
+                <div class="field-log-upload">
+                  <span class="field-log-upload-title">фото <span class="field-log-optional">галерея телефона или файлы с ПК</span></span>
+                  <label class="field-log-file-picker">
+                    <input type="file" id="field-log-files" name="photos" accept="image/*" multiple class="field-log-file-input">
+                    <span class="field-log-file-picker-btn">прикрепить снимки</span>
+                  </label>
+                  <div class="field-log-attach-preview" id="field-log-attach-preview" hidden></div>
+                </div>
+                <div class="field-log-draft-actions">
+                  <button type="submit" class="field-log-draft-btn">сгенерировать JSON</button>
+                  <button type="button" class="field-log-draft-btn field-log-draft-btn--secondary" id="field-log-download-photos" hidden>скачать фото</button>
+                  <button type="button" class="field-log-draft-btn field-log-draft-btn--secondary" id="field-log-copy-json" hidden>копировать JSON</button>
+                </div>
+              </form>
+              <pre class="field-log-draft-output" id="field-log-draft-output" hidden tabindex="-1"></pre>
+              <p class="field-log-hint">
+                1) прикрепите фото → скачайте их в <code>field-log/</code> на хостинге &nbsp; 2) вставьте JSON в <code>data/field-log.json</code> → <code>entries</code>
+              </p>
+            </details>
+          </section>
+
+          <!-- PINTEREST BOARD (Replaced Highlights) -->
+          <div class="panel grid-wide pinterest-panel">
+            <div class="panel-title"><img src="images/mug.png" class="iconic-star">
+              <span>PINTEREST_ARCHIVE // VOMITBOYCOM // SYNC_ACTIVE</span>
+            </div>
+            <div class="pinterest-wrapper">
+              <div class="pinterest-filter">
+                <a class="pinterest-board-embed" data-pin-do="embedBoard" data-pin-board-width="800"
+                  data-pin-scale-height="280" data-pin-scale-width="92"
+                  href="https://www.pinterest.com/vomitboy2007/vomitboycom/"
+                  aria-label="Pinterest board vomitboycom"></a>
+              </div>
+              <div class="pinterest-fallback" id="pinterest-fallback" hidden>
+                <p>Доска не загрузилась (блокировщик рекламы, file:// или сеть). Откройте на Pinterest:</p>
+                <a class="pinterest-open-link" href="https://www.pinterest.com/vomitboy2007/vomitboycom/" target="_blank"
+                  rel="noopener noreferrer">[ OPEN_BOARD_ON_PINTEREST ]</a>
+              </div>
+            </div>
+            <div class="pinterest-link-row">
+              <a class="pinterest-open-link" href="https://www.pinterest.com/vomitboy2007/vomitboycom/" target="_blank"
+                rel="noopener noreferrer">[ OPEN_BOARD_ON_PINTEREST ]</a>
+            </div>
+            <p class="pinterest-status">[ STATUS: PINTEREST_LOADING... ]</p>
+          </div>
+
+
+          <!-- MUSIC TIERLIST -->
+          <div class="panel" id="music">
+            <div class="panel-title"><img src="gifs/kitty.gif" class="iconic-star"> <span>MUSIC//</span>
+            </div>
+            <div class="tierlist">
+              <div class="tier-row">
+                <div class="tier-label tier-s">S</div>
+                <div class="tier-items">
+                  <div class="tier-item" title="Aphex Twin"><img src="images/tier/music/aphextwin.png" alt="Aphex Twin">
+                  </div>
+                  <div class="tier-item" title="Deadmou5"><img src="images/tier/music/deadmou5.jpg" alt="Deadmou5">
+                  </div>
+                  <div class="tier-item" title="deftones"><img src="images/tier/music/deftones.png" alt="deftones">
+                  </div>
+                  <div class="tier-item" title="My Bloody Valentine"><img src="images/tier/music/mbv.png"
+                      alt="My Bloody Valentine">
+                  </div>
+                  <div class="tier-item" title="Minecraft"><img src="images/tier/music/minecraft.png" alt="Minecraft">
+                  </div>
+                  <div class="tier-item" title="Skitzofrenia Simulation"><img src="images/tier/music/swrslt.jpg"
+                      alt="Skitzofrenia Simulation">
+                  </div>
+                </div>
+              </div>
+              <div class="tier-row">
+                <div class="tier-label tier-a">A</div>
+                <div class="tier-items">
+                  <div class="tier-item" title="Einsturzende"><img src="images/tier/music/Grimes.png"
+                      alt="Einsturzende"></div>
+                  <div class="tier-item" title="Salem"><img src="images/tier/music/luxuryelite.jpg" alt="Salem"></div>
+                  <div class="tier-item" title="Salem"><img src="images/tier/music/lp_meteora.jpg" alt="Salem"></div>
+                </div>
+              </div>
+              <div class="tier-row">
+                <div class="tier-label tier-b">B</div>
+                <div class="tier-items">
+                  <div class="tier-item" title="Flipper"><img src="images/tier/music/akiaura.jpg" alt="Flipper"></div>
+                </div>
+              </div>
+              <div class="tier-row">
+                <div class="tier-label tier-c">C</div>
+                <div class="tier-items">
+                </div>
+              </div>
+              <div class="tier-row">
+                <div class="tier-label tier-d">D</div>
+                <div class="tier-items">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- GAMES TIERLIST -->
+          <div class="panel">
+            <div class="panel-title"><img src="gifs/linux-computer.gif" class="iconic-star"> <span>GAMES//</span>
+            </div>
+            <div class="tierlist">
+              <div class="tier-row">
+                <div class="tier-label tier-s">S</div>
+                <div class="tier-items">
+                  <div class="tier-item" title="Silent Hill 2"><img src="images/tier/games\cof.png" alt="Silent Hill 2">
+                  </div>
+                  <div class="tier-item" title="Dark Souls"><img src="images/tier/games\pvz.jpg" alt="Dark Souls"></div>
+                  <div class="tier-item" title="PvZ"><img src="images/tier/games\tlou.jpg" alt="PvZ"></div>
+                  <div class="tier-item" title="PvZ"><img src="images/tier/games\bg3.jpg" alt="PvZ"></div>
+                  <div class="tier-item" title="Destiny"><img src="images/tier/games/destiny.jpg" alt="Destiny"></div>
+                  <div class="tier-item" title="Portal"><img src="images/tier/games/portal.png" alt="Portal"></div>
+                </div>
+              </div>
+              <div class="tier-row">
+                <div class="tier-label tier-a">A</div>
+                <div class="tier-items">
+                  <div class="tier-item" title="PvZ"><img src="images/tier/games\theascent.jpg" alt="PvZ"></div>
+                  <div class="tier-item" title="PvZ"><img src="images/tier/games\undertale.png" alt="PvZ"></div>
+                  <div class="tier-item" title="Silent Hill 2"><img src="images/tier/games\sh2.png" alt="Silent Hill 2"></div>
+                  <div class="tier-item" title="Guilty Gear"><img src="images/tier/games/gg.avif" alt="Guilty Gear"></div>
+                </div>
+              </div>
+              <div class="tier-row">
+                <div class="tier-label tier-b">B</div>
+                <div class="tier-items">
+                  <div class="tier-item" title="Team Fortress 2"><img src="images/tier/games\dota.png"
+                      alt="Team Fortress 2"></div>
+                </div>
+              </div>
+              <div class="tier-row">
+                <div class="tier-label tier-c">C</div>
+                <div class="tier-items">
+                  <div class="tier-item" title="Half-Life"><img src="images/tier/games\katawa.png" alt="Half-Life">
+                  </div>
+                </div>
+              </div>
+              <div class="tier-row">
+                <div class="tier-label tier-d">D</div>
+                <div class="tier-items"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ANIME TIERLIST -->
+          <div class="panel grid-wide">
+            <div class="panel-title">
+              <img src="gifs/miku.gif" class="iconic-star"> <span>ANIME//</span>
+            </div>
+            <div class="tierlist">
+              <div class="tier-row">
+                <div class="tier-label tier-s">S</div>
+                <div class="tier-items">
+                  <div class="tier-item" title="Attack on Titan"><img src="images/tier/anime/aot.webp" alt="Attack on Titan"></div>
+                  <div class="tier-item" title="JoJo Part 5"><img src="images/tier/anime/jojo5.jpg" alt="JoJo Part 5"></div>
+                  <div class="tier-item" title="Evangelion"><img src="images/tier/anime/evangelion.jpg" alt="Evangelion"></div>
+                  <div class="tier-item" title="Watamote"><img src="images/tier/anime/watamote.jpg" alt="Watamote"></div>
+                  <div class="tier-item" title="Serial Experiments Lain"><img src="images/tier/anime/lain.jpg" alt="Serial Experiments Lain">
+                  </div>
+                  <div class="tier-item" title="Ergo Proxy"><img src="images/tier/anime/ergo.jpg" alt="Ergo Proxy"></div>
+                </div>
+              </div>
+              <div class="tier-row">
+                <div class="tier-label tier-a">A</div>
+                <div class="tier-items">
+                  <div class="tier-item" title="Chainsaw Man"><img src="images/tier/anime/chainsaw.jpg" alt="Chainsaw Man"></div>
+                  <div class="tier-item" title="Akira"><img src="images/tier/anime/akira.webp" alt="Akira"></div>
+                  <div class="tier-item" title="Death Note"><img src="images/tier/anime/dn.jpg" alt="Death Note"></div>
+                  <div class="tier-item" title="JoJo Part 7"><img src="images/tier/anime/jojo7.jpg" alt="JoJo Part 7"></div>
+                  <div class="tier-item" title="One Piece"><img src="images/tier/anime/op.jpg" alt="One Piece"></div>
+                  <div class="tier-item" title="JoJo Part 4"><img src="images/tier/anime/jojo4.webp" alt="JoJo Part 4"></div>
+                </div>
+              </div>
+              <div class="tier-row">
+                <div class="tier-label tier-b">B</div>
+                <div class="tier-items">
+                  <div class="tier-item" title="Akame ga Kill"><img src="images/tier/anime/agk.jpg" alt="Akame ga Kill"></div>
+                  <div class="tier-item" title="Panty & Stocking"><img src="images/tier/anime/ps.jpg" alt="Panty & Stocking"></div>
+                  <div class="tier-item" title="K-On!"><img src="images/tier/anime/kon.webp" alt="K-On!"></div>
+                </div>
+              </div>
+              <div class="tier-row">
+                <div class="tier-label tier-c">C</div>
+                <div class="tier-items">
+                  <div class="tier-item" title="Naruto"><img src="images/tier/anime/naruto.jpg" alt="Naruto"></div>
+                  <div class="tier-item" title="Konosuba"><img src="images/tier/anime/konosuba.jpg" alt="Konosuba"></div>
+                </div>
+              </div>
+              <div class="tier-row">
+                <div class="tier-label tier-d">D</div>
+                <div class="tier-items"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- QUOTE -->
+          <div class="panel grid-wide quote-panel">
+            <div class="quote-copy">
+              <div class="about-quote">
+                «There is an idea of a Yaroslav Vomitov; some kind of abstraction. But there is no real me: only an
+                entity, something illusory... I simply am not there.»
+              </div>
+              <div class="quote-meta"></div>
+            </div>
+            <div class="quote-media">
+              <img src="images/51c4d7375056d04508d847c438d6751a.jpg" alt="Portrait detail">
+            </div>
+          </div>
+
+          <!-- GIF UNDER QUOTE -->
+          <div class="panel grid-wide gif-panel">
+            <div class="gif-stack">
+              <img src="gifs/reze-chainsaw-man.gif" alt="Animated scene" class="gif-image">
+              <div class="gif-caption">0→1 see ya guys</div>
+            </div>
+          </div>
+          <!-- LINKS / BUTTONS -->
+          <div class="panel grid-wide" id="links">
+            <div class="panel-title"><img src="images/100px-Aegis_hi_res.png" class="iconic-star"> <span>links</span>
+              / allies</div>
+            <div class="friend-buttons">
+              <a href="#" class="btn-88x31" aria-disabled="true"><i class="fa-brands fa-vk social-icon"
+                  aria-hidden="true"></i>VK</a>
+              <a href="https://discord.gg/8BctuKDwpu" class="btn-88x31 pink" target="_blank" rel="noopener noreferrer"><i
+                  class="fa-brands fa-discord social-icon" aria-hidden="true"></i>DISCORD</a>
+              <a href="https://t.me/vomitboyxdxd" class="btn-88x31" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-telegram social-icon"
+                  aria-hidden="true"></i>TG</a>
+              <a href="https://pin.it/5NOlxwnTB" class="btn-88x31 pink" target="_blank" rel="noopener noreferrer"><i
+                  class="fa-brands fa-pinterest social-icon" aria-hidden="true"></i>PINTEREST</a>
+              <a href="#" class="btn-88x31" aria-disabled="true"><i class="fa-brands fa-youtube social-icon"
+                  aria-hidden="true"></i>YT</a>
+              <a href="#" class="btn-88x31 pink" aria-disabled="true"><i class="fa-brands fa-x-twitter social-icon"
+                  aria-hidden="true"></i>X</a>
+            </div>
+          </div>
+
+        </div><!-- /grid -->
+      </main><!-- /main-content -->
+
+      <!-- ── INFOBOX SIDEBAR ── -->
+      <aside class="infobox" aria-labelledby="infobox-title">
+        <div class="infobox-header" id="infobox-title">VOMITBOY</div>
+
+        <!-- Image placeholder -->
+        <div class="infobox-img">
+          <img src="images/richie.JPG" alt="Vomitboy portrait" class="infobox-photo">
+        </div>
+
+        <!-- ORIGINS -->
+        <div class="infobox-section" id="sec-origins">
+          <button class="infobox-section-title" type="button" data-section-toggle aria-expanded="true" aria-controls="sec-origins-body">
+            <span>Origins</span><span class="chevron" aria-hidden="true">&#9650;</span>
+          </button>
+          <div class="infobox-body" id="sec-origins-body">
+            <div class="infobox-row">
+              <div class="infobox-label">Other names</div>
+              <div class="infobox-val">
+                <span class="pink">Тошнотики</span>, вомиты,<br>
+                мутанты,<br>
+              </div>
+            </div>
+            <div class="infobox-row">
+              <div class="infobox-label">Decade of origin</div>
+              <div class="infobox-val infobox-val-left">2021</div>
+            </div>
+            <div class="infobox-row">
+              <div class="infobox-label">Creator(s)</div>
+              <div class="infobox-val">Yaroslav Vomitov|Internet underground</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- VISUALS & THEMES -->
+        <div class="infobox-section" id="sec-visuals">
+          <button class="infobox-section-title" type="button" data-section-toggle aria-expanded="true" aria-controls="sec-visuals-body">
+            <span>Visuals &amp; Themes</span><span class="chevron" aria-hidden="true">&#9650;</span>
+          </button>
+          <div class="infobox-body" id="sec-visuals-body">
+            <div class="infobox-row">
+              <div class="infobox-label">Key motifs</div>
+              <div class="infobox-val">the aesthetics of animal corpses, moldy or rotten food, old things, dirty mugs,
+                garbage, after hours and weird street pics, geotags, netstalking, dank memes, PvZ, 2ch culture</div>
+            </div>
+            <div class="infobox-row">
+              <div class="infobox-label">Key colours</div>
+              <div class="infobox-val">
+                <span class="swatch" style="--swatch:#b8ff00">■</span> acid candy<br>
+                <span class="swatch" style="--swatch:#6abf4b">■</span> avocado stone<br>
+                <span class="swatch" style="--swatch:#8fa888">■</span> armor wash<br>
+                <span class="swatch" style="--swatch:#111111">■</span> black<br>
+                <span class="swatch" style="--swatch:#4a5c3a">■</span> hinterlands green
+              </div>
+            </div>
+            <div class="infobox-row">
+              <div class="infobox-label">Key values</div>
+              <div class="infobox-val">Edgy humor, irony, mischief, tricks, normie hate, general Internet separation,
+                creativity, friendship, acceptance</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CONNECTIONS -->
+        <div class="infobox-section" id="sec-connections">
+          <button class="infobox-section-title" type="button" data-section-toggle aria-expanded="true" aria-controls="sec-connections-body">
+            <span>Connections</span><span class="chevron" aria-hidden="true">&#9650;</span>
+          </button>
+          <div class="infobox-body" id="sec-connections-body">
+            <div class="infobox-row">
+              <div class="infobox-label">Related aesthetics</div>
+              <div class="infobox-val">
+                <a href="#"></a>
+                <a href="#">Gorecore</a>
+                <a href="#">Bastardcore</a>
+                <a href="#">Grunge</a>
+                <a href="#">trashcore</a>
+                <a href="#">OldWeb</a>
+                <a href="#">Weirdcore</a>
+                <a href="#">Underground Punk</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MEDIA & CULTURE -->
+        <div class="infobox-section" id="sec-media">
+          <button class="infobox-section-title" type="button" data-section-toggle aria-expanded="true" aria-controls="sec-media-body">
+            <span>Media &amp; Culture</span><span class="chevron" aria-hidden="true">&#9650;</span>
+          </button>
+          <div class="infobox-body" id="sec-media-body">
+            <div class="infobox-row">
+              <div class="infobox-label">Related media</div>
+              <div class="infobox-val">
+                <a href="#">Влад Савельев</a>
+                <a href="#">Nikocado Avocado</a>
+                <a href="#">Filthy Frank</a>
+                <a href="#">sonnikuza</a>
+                <a href="#">iDubbbzTV</a>
+                <a href="#">VANOMAS</a>
+                <a href="#">GLAD VALAKAS</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+    </div><!-- /page-layout -->
+
+    <!-- ── SECOND TICKER ── -->
+    <div class="running-text running-text-secondary">
+      <span>◉ ПРИВЕТ. ЧТО ◉ ◉ каждому своё. ◉ you have got mail!✉️ ◉ est.
+        somewhere in the early 2020S ◉ still alive ◉ still weird ◉ поморгите. ◉ &nbsp;&nbsp;</span>
+    </div>
+
+    <!-- ── FOOTER ── -->
+    <footer role="contentinfo">
+      <p>
+        <a href="#">[ zine ]</a> &nbsp;|&nbsp;
+        <a href="#">[ email ]</a> &nbsp;|&nbsp;
+        <a href="#">[ neocities ]</a> &nbsp;|&nbsp;
+        <a href="#">[ guestbook ]</a> &nbsp;|&nbsp;
+        <a href="#">[ sitemap ]</a>
+      </p>
+      <br>
+      <p>✦ VOMITBOY — sick &amp; beautiful since forever ✦</p>
+      <p>made with love to community. no javascript frameworks were harmed.</p>
+      <div class="footer-jp">嘔吐少年 / 美しさは汚いものの中にある</div>
+      <br>
+      <p class="footer-note">this site is a constant work in progress. some things may
+        be broken. that's the point.</p>
+    </footer>
+
+  </div>
+  <script src="field-log.js?v=20260524-entries"></script>
+  <script src="main.js?v=20260525-neocities-views"></script>
+</body>
+
+</html>
+
+
+
+
