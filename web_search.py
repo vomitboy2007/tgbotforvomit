@@ -197,9 +197,9 @@ async def search_web(query: str, *, max_results: int | None = None) -> list[dict
     # Wikipedia first: DuckDuckGo often returns 202 on Railway/datacenter IPs.
     merged.extend(await _wikipedia_search(cleaned_query, max_results=limit))
 
-    if len(merged) < limit:
-        need = limit - len(merged)
-        merged.extend(await _duckduckgo_search(cleaned_query, max_results=need))
+    # Skip slow DuckDuckGo when Wikipedia already answered (DDG often 202 on Railway).
+    if not merged:
+        merged.extend(await _duckduckgo_search(cleaned_query, max_results=limit))
 
     if len(merged) < limit and SEARXNG_URL:
         merged.extend(await _searxng_search(cleaned_query, max_results=limit))

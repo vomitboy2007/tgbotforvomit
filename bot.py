@@ -5,6 +5,7 @@ The bot runs through long polling, so Railway should start it as a worker.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import logging
@@ -158,6 +159,13 @@ INCOMING_CONTENT = (
     | filters.PHOTO
     | filters.Document.IMAGE
 ) & ~filters.COMMAND
+# All non-command messages in groups (stickers/voice with reply to bot were dropped before).
+GROUP_INCOMING = (
+    filters.ChatType.GROUPS
+    & filters.UpdateType.MESSAGES
+    & ~filters.COMMAND
+    & ~filters.StatusUpdate.ALL
+)
 
 context_store: dict[int, deque[str]] = {}
 SYSTEM_PROMPT = build_system_prompt()
@@ -519,7 +527,7 @@ def apply_style_rules(reply: str) -> str:
     text = re.sub(r"[\s,;:]+", " ", text)
     text = normalize_text(text).lower()
     if not text:
-        return text
+        return "ок."
 
     if text[-1] not in ".!?…":
         text += "."
@@ -548,20 +556,7 @@ async def get_bot_identity(context: ContextTypes.DEFAULT_TYPE) -> tuple[int | No
     return bot_id, _normalize_username(bot_username)
 
 
-def build_group_incoming_filter() -> filters.MessageFilter:
-    """All group content updates; mention/reply gating is done in should_reply.
-
-    Do not use filters.Mention here — it ignores caption_entities (photo + @bot caption).
-    """
-    return filters.ChatType.GROUPS & INCOMING_CONTENT
-
-
-async def post_init(application: Application) -> None:
-    me = await application.bot.get_me()
-    application.bot_data[BOT_DATA_ID_KEY] = me.id
-    application.bot_data[BOT_DATA_USERNAME_KEY] = _normalize_username(me.username)
-    logger.info("Bot ready: id=%s username=@%s", me.id, me.username)
-
+def register_message_handlers(application: Application) -> None:
     application.add_handler(
         MessageHandler(
             filters.ChatType.PRIVATE & INCOMING_CONTENT,
@@ -570,12 +565,17 @@ async def post_init(application: Application) -> None:
         group=0,
     )
     application.add_handler(
-        MessageHandler(
-            build_group_incoming_filter(),
-            handle_chat_message,
-        ),
+        MessageHandler(GROUP_INCOMING, handle_chat_message),
         group=0,
     )
+
+
+async def post_init(application: Application) -> None:
+    await application.bot.delete_webhook(drop_pending_updates=True)
+    me = await application.bot.get_me()
+    application.bot_data[BOT_DATA_ID_KEY] = me.id
+    application.bot_data[BOT_DATA_USERNAME_KEY] = _normalize_username(me.username)
+    logger.info("Bot ready: id=%s username=@%s", me.id, me.username)
 
 
 def build_lore_reply(chat_id: int) -> tuple[str, str]:
@@ -605,10 +605,25 @@ def _message_full_text(message: Message) -> str:
     return "\n".join(parts)
 
 
+def _entity_belongs_to_caption(message: Message, entity: object) -> bool:
+    if not message.caption:
+        return False
+    offset = getattr(entity, "offset", None)
+    length = getattr(entity, "length", None)
+    entity_type = getattr(entity, "type", None)
+    for caption_entity in message.caption_entities or ():
+        if (
+            caption_entity.offset == offset
+            and caption_entity.length == length
+            and caption_entity.type == entity_type
+        ):
+            return True
+    return False
+
+
 def _parse_entity_fragment(message: Message, entity: object) -> str | None:
-    caption_entities = message.caption_entities or ()
     try:
-        if entity in caption_entities:
+        if _entity_belongs_to_caption(message, entity):
             return message.parse_caption_entity(entity)
         return message.parse_entity(entity)
     except (RuntimeError, ValueError, IndexError, AttributeError, TypeError):
@@ -677,15 +692,7 @@ def should_reply(message: Message, bot_username: str | None, bot_id: int | None)
     if not message or not chat:
         return False
 
-    body = normalize_text(get_message_text(message))
-    attachment_present = has_image_attachment(message)
-    if not body and not attachment_present:
-        return False
-
     chat_type = getattr(chat, "type", None)
-    if chat_type == ChatType.PRIVATE:
-        return True
-
     if chat_type in (ChatType.GROUP, ChatType.SUPERGROUP):
         if is_reply_to_bot(message, bot_id, bot_username):
             return True
@@ -693,7 +700,12 @@ def should_reply(message: Message, bot_username: str | None, bot_id: int | None)
             return True
         return False
 
-    return False
+    body = normalize_text(get_message_text(message))
+    attachment_present = has_image_attachment(message)
+    if chat_type == ChatType.PRIVATE:
+        return bool(body or attachment_present)
+
+    return bool(body or attachment_present)
 
 
 async def extract_image_attachment(message: object) -> AttachmentInfo | None:
@@ -867,7 +879,11 @@ async def generate_reply(
         else:
             search_query = refine_search_query(search_query)
         logger.info("Running web search for query=%r", search_query)
-        results = await search_web(search_query)
+        try:
+            results = await asyncio.wait_for(search_web(search_query), timeout=25.0)
+        except TimeoutError:
+            logger.warning("Web search timed out for query=%r", search_query)
+            results = []
         search_block = format_search_context(results)
         follow_up = (
             f"{user_payload}\n\n"
@@ -975,7 +991,18 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         attachment = None
         if has_image_attachment(message) and reply_needed:
             attachment = await extract_image_attachment(message)
-        current_text = raw_text or ("[фото]" if attachment or has_image_attachment(message) else "")
+        if raw_text:
+            current_text = raw_text
+        elif attachment or has_image_attachment(message):
+            current_text = "[фото]"
+        elif message.sticker:
+            current_text = "[стикер]"
+        elif message.voice or message.video_note:
+            current_text = "[голос]"
+        elif message.video or message.animation:
+            current_text = "[видео]"
+        else:
+            current_text = ""
 
         if not current_text and not attachment and not reply_needed:
             return
@@ -1024,7 +1051,16 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         if not outcome.text:
             if reply_needed:
-                logger.info("Skipped reply in chat %s (model returned SKIP)", chat_id)
+                logger.warning(
+                    "No reply text chat=%s mention=%s reply_to_bot=%s text=%r",
+                    chat_id,
+                    is_mention_to_bot(message, bot_id, bot_username),
+                    is_reply_to_bot(message, bot_id, bot_username),
+                    (raw_text or "")[:80],
+                )
+                await message.reply_text(
+                    apply_style_rules("не смог ответить. напиши ещё раз с @ или реплаем на моё сообщение.")
+                )
             return
 
         add_message(chat_id, BOT_DISPLAY_NAME, outcome.text)
@@ -1058,6 +1094,7 @@ def main() -> None:
         .post_init(post_init)
         .build()
     )
+    register_message_handlers(app)
     app.add_handler(CommandHandler("lore", on_lore))
     app.add_handler(CommandHandler("ping", on_ping))
     app.add_error_handler(on_error)
