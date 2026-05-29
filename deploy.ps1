@@ -15,13 +15,13 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 if (-not (git remote get-url origin 2>$null)) {
-    git remote add origin https://github.com/vomitboy2007/tg_bot.git
+    git remote add origin https://github.com/vomitboy2007/tgbotforvomit.git
 }
 
-$exists = gh repo view vomitboy2007/tg_bot 2>$null
+$exists = gh repo view vomitboy2007/tgbotforvomit 2>$null
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "Создаю репозиторий vomitboy2007/tg_bot ..."
-    gh repo create vomitboy2007/tg_bot --public --source=. --remote=origin --push
+    Write-Host "Создаю репозиторий vomitboy2007/tgbotforvomit ..."
+    gh repo create vomitboy2007/tgbotforvomit --public --source=. --remote=origin --push
 } else {
     git push -u origin main
 }
@@ -29,4 +29,4 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host ""
 Write-Host "GitHub готов. В Railway добавьте Variables:"
 Write-Host "  TELEGRAM_TOKEN, OPENAI_API_KEY, CONTEXT_WINDOW=15"
-Write-Host "  https://railway.app -> New Project -> Deploy from GitHub -> tg_bot"
+Write-Host "  https://railway.app -> New Project -> Deploy from GitHub -> tgbotforvomit"

@@ -22,7 +22,7 @@ python bot.py
 
 ## Деплой на Railway
 
-1. Запушьте репозиторий на GitHub.
+1. Репозиторий: [vomitboy2007/tgbotforvomit](https://github.com/vomitboy2007/tgbotforvomit).
 2. [railway.app](https://railway.app) → New Project → Deploy from GitHub repo.
 3. В **Variables** задайте `TELEGRAM_TOKEN`, `OPENAI_API_KEY`, `CONTEXT_WINDOW` (опционально `OPENAI_MODEL`).
 4. Railway подхватит `Procfile` (`worker: python bot.py`).
