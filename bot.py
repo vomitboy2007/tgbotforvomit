@@ -903,6 +903,14 @@ def should_reply(message: Message, bot_username: str | None, bot_id: int | None)
             return True
         if is_mention_to_bot(message, bot_id, bot_username):
             return True
+
+        # Proactive replies in groups: respond to messages strongly related to the vomitboy universe
+        # even without explicit @ (e.g. people talking about "ярик", "тошнотики", "immortals", "diet" etc.)
+        # This makes the bot feel alive in the chat without violating the "молчи на общий флуд" rule.
+        body = normalize_text(get_message_text(message))
+        if body and SITE_LORE.is_lore_topic(body):
+            return True
+
         return False
 
     body = normalize_text(get_message_text(message))
