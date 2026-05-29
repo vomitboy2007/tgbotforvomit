@@ -31,7 +31,16 @@ SKIP_MARKERS = ("[SKIP]", "[SILENCE]", "SKIP", "")
 
 context_store: dict[int, deque[str]] = {}
 SYSTEM_PROMPT = build_system_prompt()
-openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+_openai_client: OpenAI | None = None
+
+
+def get_openai_client() -> OpenAI | None:
+    global _openai_client
+    if not OPENAI_API_KEY:
+        return None
+    if _openai_client is None:
+        _openai_client = OpenAI(api_key=OPENAI_API_KEY)
+    return _openai_client
 
 
 def get_context(chat_id: int) -> deque[str]:
@@ -94,14 +103,15 @@ def format_user_payload(chat_id: int, current_name: str, current_text: str) -> s
 
 
 def generate_reply(chat_id: int, current_name: str, current_text: str) -> str | None:
-    if not openai_client:
+    client = get_openai_client()
+    if not client:
         logger.error("OPENAI_API_KEY is not set")
         return "ладно признаюсь мозги в облаке а ключей нет"
 
     user_content = format_user_payload(chat_id, current_name, current_text)
 
     try:
-        response = openai_client.chat.completions.create(
+        response = client.chat.completions.create(
             model=OPENAI_MODEL,
             temperature=0.9,
             max_tokens=400,
@@ -161,10 +171,19 @@ def main() -> None:
     if not TELEGRAM_TOKEN:
         raise SystemExit("TELEGRAM_TOKEN is required")
 
+    try:
+        get_openai_client()
+        openai_ok = bool(OPENAI_API_KEY)
+    except Exception:
+        logger.exception("OpenAI client init failed")
+        openai_ok = False
+
     logger.info(
-        "Starting bot (context=%s, model=%s, corpus samples loaded)",
+        "Starting bot (context=%s, model=%s, openai=%s, token=%s)",
         CONTEXT_WINDOW,
         OPENAI_MODEL,
+        "ok" if openai_ok else "missing",
+        "set" if TELEGRAM_TOKEN else "missing",
     )
 
     app = (
